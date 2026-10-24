@@ -111,9 +111,10 @@ main{padding-top:12px}
 footer{margin-top:24px;color:var(--muted);font-size:.75rem;max-width:62ch}
 footer a{color:inherit}
 .cmdr{margin-top:8px}
-.cmdr-info{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:6px 8px}
+.cmdr-info{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:6px 8px}
 .cthumb{width:36px;height:50px;border-radius:3px;background:var(--surface-2);flex:none;object-fit:cover}
-.cmdr-txt{display:block;min-width:0;flex:1}
+.cmdr-txt{display:block;min-width:0;flex:1 1 140px}
+#cmdrInfo .cmdr-txt{flex:1 1 calc(100% - 52px)}
 .cmdr-txt b{display:block;font:700 .95rem/1.2 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #cmdrSub{display:block;font-size:.75rem;color:var(--muted);margin-top:2px}
 .sheet{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;
@@ -121,8 +122,27 @@ footer a{color:inherit}
 .sheet-bar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 #pickHint{margin-bottom:8px}
 #pickList{list-style:none;margin:0;padding:0 0 max(24px,env(safe-area-inset-bottom,0px));overflow:auto;flex:1;display:grid;gap:6px;align-content:start}
-.pick{width:100%;text-align:left;display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.pickrow{display:flex;gap:6px;align-items:center}
+.sbtn{flex:none;padding:10px 14px}
+.pick{flex:1;min-width:0;text-align:left;display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .pick .cost{display:flex;gap:2px}
+.pick-tools{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+#refine{display:grid;gap:12px;margin-bottom:10px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;max-height:55vh;overflow:auto}
+.chip small{opacity:.7;margin-left:2px;font-variant-numeric:tabular-nums}
+.sg-title{margin:0;flex:1;min-width:0;font:700 1.1rem/1.2 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sg-scroll{overflow:auto;flex:1;display:grid;gap:12px;align-content:start;padding-bottom:max(28px,env(safe-area-inset-bottom,0px))}
+.sg-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sg-top a{color:var(--accent);font-weight:600;font-size:.9rem}
+.sg-list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.sg-row{display:flex;gap:8px;align-items:center;padding:8px 8px 8px 12px;border-top:1px solid var(--line)}
+.sg-row:first-child{border-top:0}
+.sg-body{display:block;flex:1;min-width:0}
+.sg-stats{display:block;font-size:.78rem;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.syn{font-weight:700;color:var(--accent)}
+.sg-add{flex:none;width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:none;font-size:1.3rem;font-weight:700;color:var(--accent)}
+.sg-add.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.credit{font-size:.75rem;color:var(--muted);max-width:62ch}
+.credit a{color:inherit}
 .barbtns{display:flex;gap:8px}
 .barbtns b{font-variant-numeric:tabular-nums}
 .add{flex:none;width:52px;border:0;border-left:1px solid var(--line);background:none;font-size:1.4rem;font-weight:700;color:var(--accent)}
@@ -168,6 +188,7 @@ footer a{color:inherit}
     <div class="cmdr-info" id="cmdrInfo" hidden>
       <img class="cthumb" id="cmdrImg" alt="">
       <span class="cmdr-txt"><b id="cmdrName"></b><span id="cmdrSub"></span></span>
+      <button id="cmdrIdeas" class="ghost" type="button">Ideas</button>
       <button id="cmdrChange" class="ghost" type="button">Change</button>
       <button id="cmdrClear" class="ghost" type="button" aria-label="Remove commander">✕</button>
     </div>
@@ -236,6 +257,7 @@ footer a{color:inherit}
     <div class="field"><label for="deckName">Deck name</label><input id="deckName" type="text" maxlength="60" autocomplete="off"></div>
     <div class="cmdr-info">
       <span class="cmdr-txt"><b id="deckCmdrName"></b><span id="deckCmdrCI"></span></span>
+      <button id="deckIdeas" class="ghost" type="button" hidden>Ideas</button>
       <button id="deckCmdrBtn" class="ghost" type="button">Set commander</button>
     </div>
     <div class="sumrow"><b id="deckSumText">0 / 100</b><span class="status">cards, commander included</span></div>
@@ -261,11 +283,61 @@ footer a{color:inherit}
 
 <div id="picker" class="sheet" role="dialog" aria-modal="true" aria-label="Choose a commander" hidden>
   <div class="sheet-bar">
-    <input id="pickQ" type="search" placeholder="Search legendary creatures" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search commanders">
+    <input id="pickQ" type="search" placeholder="Search name, type or rules text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search commanders">
     <button id="pickClose" class="ghost" type="button">Close</button>
   </div>
-  <div id="pickHint" class="status" aria-live="polite"></div>
+  <div class="pick-tools">
+    <div id="pickHint" class="status" aria-live="polite"></div>
+    <button id="refineBtn" class="ghost" type="button" aria-expanded="false" aria-controls="refine">Refine</button>
+  </div>
+  <div id="refine" hidden>
+    <div class="field"><span class="lab">Color identity</span>
+      <div class="chips" id="pickCI" role="group" aria-label="Commander color identity">
+        <button class="chip c W" type="button" data-pc="W" aria-pressed="false" aria-label="White">W</button>
+        <button class="chip c U" type="button" data-pc="U" aria-pressed="false" aria-label="Blue">U</button>
+        <button class="chip c B" type="button" data-pc="B" aria-pressed="false" aria-label="Black">B</button>
+        <button class="chip c R" type="button" data-pc="R" aria-pressed="false" aria-label="Red">R</button>
+        <button class="chip c G" type="button" data-pc="G" aria-pressed="false" aria-label="Green">G</button>
+        <button class="chip c C" type="button" data-pc="C" aria-pressed="false" aria-label="Colorless">C</button>
+      </div>
+      <div class="seg" id="pickMode">
+        <button type="button" data-pm="exact" aria-pressed="true">Exactly these</button>
+        <button type="button" data-pm="within" aria-pressed="false">These or fewer</button>
+      </div>
+    </div>
+    <div class="field"><span class="lab">Themes (from the commander's rules text)</span>
+      <div class="chips" id="pickThemes" style="margin-top:0"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="pickMv">Max mana value</label>
+        <select id="pickMv"><option value="">Any</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></div>
+      <div class="field"><label for="pickSort">Sort by</label>
+        <select id="pickSort"><option value="name">Name</option><option value="pop">EDHREC popularity</option><option value="cmc">Mana value</option></select></div>
+    </div>
+    <div><button id="pickReset" class="ghost" type="button">Reset refinements</button></div>
+  </div>
   <ul id="pickList"></ul>
+</div>
+
+<div id="sugg" class="sheet" role="dialog" aria-modal="true" aria-label="Suggestions from EDHREC" hidden>
+  <div class="sheet-bar">
+    <h2 class="sg-title" id="sgTitle">Suggestions</h2>
+    <button id="sgClose" class="ghost" type="button">Close</button>
+  </div>
+  <div class="sg-scroll">
+    <div class="sg-top">
+      <span id="sgCI"></span>
+      <button id="sgUse" class="btn" type="button" hidden>Use as commander</button>
+      <a id="sgLink" href="https://edhrec.com" target="_blank" rel="noopener">Open on EDHREC</a>
+    </div>
+    <div class="field"><span class="lab">EDHREC themes</span><div id="sgTags" class="chips" style="margin-top:0"></div></div>
+    <div class="field"><label for="sgSort">Sort by</label>
+      <select id="sgSort"><option value="syn">Synergy</option><option value="pop">Popularity</option></select></div>
+    <div id="sgMsg" class="status" aria-live="polite"></div>
+    <ul id="sgList" class="sg-list"></ul>
+    <button id="sgMore" class="btn alt" type="button" hidden>Show more</button>
+    <div class="credit">Suggestions come from <a href="https://edhrec.com" target="_blank" rel="noopener">EDHREC</a>, limited to cards printed before M15, and are kept on this device for a week.</div>
+  </div>
 </div>
 
 <script>
@@ -288,6 +360,9 @@ footer a{color:inherit}
     cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
     cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
     picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
+    refineBtn:$('refineBtn'), refine:$('refine'), pickCI:$('pickCI'), pickMode:$('pickMode'), pickThemes:$('pickThemes'), pickMv:$('pickMv'), pickSort:$('pickSort'), pickReset:$('pickReset'),
+    cmdrIdeas:$('cmdrIdeas'), deckIdeas:$('deckIdeas'), sugg:$('sugg'), sgTitle:$('sgTitle'), sgClose:$('sgClose'), sgCI:$('sgCI'), sgUse:$('sgUse'), sgLink:$('sgLink'),
+    sgTags:$('sgTags'), sgSort:$('sgSort'), sgMsg:$('sgMsg'), sgList:$('sgList'), sgMore:$('sgMore'),
     deckBtn:$('deckBtn'), deckCount:$('deckCount'), deckSheet:$('deckSheet'), deckSel:$('deckSel'), deckNew:$('deckNew'), deckClose:$('deckClose'),
     deckName:$('deckName'), deckCmdrName:$('deckCmdrName'), deckCmdrCI:$('deckCmdrCI'), deckCmdrBtn:$('deckCmdrBtn'),
     deckSumText:$('deckSumText'), deckFill:$('deckFill'), deckIssues:$('deckIssues'), curve:$('curve'), deckList:$('deckList'),
@@ -302,6 +377,7 @@ footer a{color:inherit}
   let cmdrCard = null; // the chosen commander's record, or null
   let decks = [], activeId = '';       // saved decks: {id, name, cmdr, cards:{oracleId:qty}}
   let idx = new Map(), nameIdx = new Map(); // oracle id -> card, normalized name -> card
+  let themeCounts = null, sg = null;
 
   /* ---------- helpers ---------- */
   const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -450,7 +526,7 @@ footer a{color:inherit}
 
   /* ---------- search ---------- */
   function prepare(arr) {
-    idx = new Map(); nameIdx = new Map();
+    idx = new Map(); nameIdx = new Map(); themeCounts = null;
     return arr.map((c, x) => {
       c.x = x; c.b = bitsOf(c.ci); c.nm = norm(c.n);
       c.h = c.nm + '\n' + norm(c.t) + '\n' + norm(c.o) + '\n' + norm(c.k);
@@ -556,23 +632,203 @@ footer a{color:inherit}
     el.cmdrName.textContent = c.n;
     el.cmdrSub.innerHTML = 'Showing cards that fit ' + ciPills(c.ci);
   }
+  /* ---------- commander picker ---------- */
+  // Themes are guessed from each commander's rules text, so they are a starting point, not an official tag.
+  const THEMES = [
+    ['Tokens', /\btokens?\b/],
+    ['+1/+1 counters', /\+1\/\+1 counter|proliferate/],
+    ['Graveyard', /graveyard|reanimat|\bflashback\b|\bunearth\b|\bdredge\b/],
+    ['Sacrifice', /sacrifice/],
+    ['Spells', /instant or sorcery|noncreature spell|cast (an? )?(instant|sorcery)/],
+    ['Artifacts', /artifact/],
+    ['Enchantments', /enchantment|\baura\b/],
+    ['Equipment & auras', /equip|attach|enchanted creature/],
+    ['Lifegain', /gains? (\d+|x|that much) life|\blifelink\b|you gain life/],
+    ['Lands', /landfall|land enters|search your library for (a|up to \w+) [\w ]*land|additional land|lands? you control/],
+    ['Mill', /\bmill|from the top of [\w ]* library into [\w ]* graveyard/],
+    ['Discard', /discard/],
+    ['Copying', /\bcopy\b|\bcopies\b/],
+    ['Tribal', /other [a-z]+s you control get|of the chosen type|chosen creature type/],
+    ['Card draw', /draws? (a|two|three|x|\d+) cards?|whenever you draw/],
+    ['Combat', /extra combat|haste|whenever [\w ,]* attacks/],
+    ['Mana', /add \{|adds? (an additional|one mana)/]
+  ];
+  const pk = { ci: new Set(), mode: 'exact', themes: new Set(), mv: '', sort: 'name' };
+  function themeBits(c) {
+    if (c.tb == null) { const t = norm(c.o); c.tb = THEMES.reduce((b, th, i) => (th[1].test(t) ? b | (1 << i) : b), 0); }
+    return c.tb;
+  }
+  function pickMatches() {
+    const terms = parseQuery(el.pickQ.value);
+    const hasCI = pk.ci.size > 0, mask = bitsOf([...pk.ci].join(''));
+    let tmask = 0; pk.themes.forEach(i => { tmask |= 1 << i; });
+    const mv = pk.mv === '' ? null : Number(pk.mv);
+    const out = [];
+    for (const c of cards) {
+      if (!c.cm) continue;
+      if (hasCI && (pk.mode === 'exact' ? c.b !== mask : (c.b & ~mask))) continue;
+      if (mv != null && c.cmc > mv) continue;
+      if (tmask && (themeBits(c) & tmask) !== tmask) continue;
+      let ok = true;
+      for (const t of terms) { if (c.h.includes(t.t) === t.neg) { ok = false; break; } }
+      if (ok) out.push(c);
+    }
+    const first = terms.find(t => !t.neg);
+    const nameHit = c => (first && c.nm.includes(first.t) ? 0 : 1);
+    const s = pk.sort;
+    out.sort((a, b) => nameHit(a) - nameHit(b) ||
+      (s === 'pop' ? (a.r == null) - (b.r == null) || a.r - b.r : s === 'cmc' ? a.cmc - b.cmc : 0) ||
+      (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
+    return out;
+  }
+  function renderRefine() {
+    el.pickCI.querySelectorAll('[data-pc]').forEach(b => b.setAttribute('aria-pressed', pk.ci.has(b.dataset.pc)));
+    el.pickMode.querySelectorAll('[data-pm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pm === pk.mode));
+    el.pickThemes.querySelectorAll('[data-th]').forEach(b => b.setAttribute('aria-pressed', pk.themes.has(+b.dataset.th)));
+    el.pickMv.value = pk.mv; el.pickSort.value = pk.sort;
+    const n = (pk.ci.size ? 1 : 0) + pk.themes.size + (pk.mv !== '' ? 1 : 0);
+    el.refineBtn.textContent = n ? 'Refine · ' + n : 'Refine';
+  }
   function renderPick() {
-    const t = norm(el.pickQ.value.trim());
-    const all = cards.filter(c => c.cm && (!t || c.nm.includes(t)));
+    const all = pickMatches();
     const list = all.slice(0, 60);
-    el.pickHint.textContent = fmt(all.length) + ' possible commanders' + (all.length > 60 ? '. Showing the first 60, keep typing to narrow.' : '');
+    el.pickHint.textContent = fmt(all.length) + ' possible commanders' + (all.length > 60 ? ' (showing 60)' : '');
     el.pickList.innerHTML = list.map(c =>
-      '<li><button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
+      '<li class="pickrow"><button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
       '<span class="type">' + esc(c.t) + '</span></span>' +
       (c.l === 'legal' ? '' : '<span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>') +
-      '<span class="cost">' + ciPills(c.ci) + '</span></button></li>').join('');
+      '<span class="cost">' + ciPills(c.ci) + '</span></button>' +
+      '<button class="ghost sbtn" type="button" data-s="' + esc(c.i) + '" aria-label="EDHREC suggestions for ' + esc(c.n) + '">Ideas</button></li>').join('');
+    renderRefine();
   }
   function openPicker() {
     if (!cards.length) { el.syncPanel.hidden = false; el.dataBtn.setAttribute('aria-expanded', 'true'); return; }
+    if (!themeCounts) {
+      themeCounts = THEMES.map(() => 0);
+      for (const c of cards) if (c.cm) { const b = themeBits(c); THEMES.forEach((_, i) => { if (b & (1 << i)) themeCounts[i]++; }); }
+      el.pickThemes.innerHTML = THEMES.map((th, i) => themeCounts[i]
+        ? '<button class="chip" type="button" data-th="' + i + '" aria-pressed="false">' + esc(th[0]) + ' <small>' + themeCounts[i] + '</small></button>' : '').join('');
+    }
     el.picker.hidden = false; el.pickQ.value = ''; renderPick();
     document.body.style.overflow = 'hidden'; el.pickQ.focus();
   }
   function closePicker() { el.picker.hidden = true; document.body.style.overflow = el.deckSheet.hidden ? '' : 'hidden'; }
+  function resetRefine() { pk.ci.clear(); pk.mode = 'exact'; pk.themes.clear(); pk.mv = ''; pk.sort = 'name'; el.pickQ.value = ''; renderPick(); }
+
+  /* ---------- EDHREC suggestions ---------- */
+  // EDHREC has no official API. This reads the same JSON pages its own site uses, one page per request,
+  // only when you open a commander, and keeps the result for a week.
+  const EDHREC_API = 'https://json.edhrec.com/pages/commanders/';
+  const EDHREC_SITE = 'https://edhrec.com/commanders/';
+  const EDHREC_TTL = 7 * 24 * 3600 * 1000;
+  const slugOf = name => norm(String(name).split(' // ')[0]).replace(/['’`,.:!?"()]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  function trimEdhrec(j) {
+    const lists = (j && j.container && j.container.json_dict && j.container.json_dict.cardlists) || [];
+    const byName = new Map();
+    for (const l of lists) for (const v of (l.cardviews || [])) {
+      if (!v || !v.name) continue;
+      const s = typeof v.synergy === 'number' ? v.synergy : null;
+      const cur = byName.get(v.name);
+      if (!cur || (s != null && (cur.s == null || s > cur.s))) byName.set(v.name, { n: v.name, s, nd: v.num_decks || 0, pd: v.potential_decks || 0 });
+    }
+    const tags = ((j && (j.tag_counts || (j.panels && j.panels.taglinks))) || []).slice(0, 18).map(t => ({ s: t.slug, v: t.value, c: t.count }));
+    return { cards: [...byName.values()], tags };
+  }
+  async function edhrecGet(slug, theme) {
+    const key = 'edhrec:' + slug + (theme ? '/' + theme : '');
+    try { const hit = await kvGet(key); if (hit && hit.d && Date.now() - hit.t < EDHREC_TTL) return hit.d; } catch (e) { /* no cache */ }
+    let r;
+    try { r = await fetch(EDHREC_API + slug + (theme ? '/' + theme : '') + '.json'); }
+    catch (e) { const err = new Error('blocked'); err.kind = 'net'; throw err; }
+    if (!r.ok) { const err = new Error('EDHREC returned ' + r.status); err.kind = (r.status === 403 || r.status === 404) ? 'missing' : 'http'; throw err; }
+    let j;
+    try { j = await r.json(); } catch (e) { const err = new Error('unreadable'); err.kind = 'parse'; throw err; }
+    const d = trimEdhrec(j);
+    try { await kvPut([[key, { t: Date.now(), d }]]); } catch (e) { /* cache is optional */ }
+    return d;
+  }
+  function suggRows() {
+    const out = [];
+    if (!sg || !sg.data) return { rows: out, total: 0 };
+    for (const e of sg.data.cards) {
+      const c = nameIdx.get(norm(e.n));
+      if (!c || c === sg.c) continue;
+      out.push({ c, s: e.s, inc: e.pd ? e.nd / e.pd : null });
+    }
+    if (sg.sort === 'pop') out.sort((a, b) => (b.inc || 0) - (a.inc || 0));
+    else out.sort((a, b) => (b.s == null ? -9 : b.s) - (a.s == null ? -9 : a.s));
+    return { rows: out, total: sg.data.cards.length };
+  }
+  function sgAddHtml(c) {
+    const q = qtyOf(c.i);
+    return '<button class="sg-add' + (q ? ' on' : '') + '" type="button" data-sa="' + c.x + '" aria-label="' + esc(addLabel(c, q)) + '">' + (q ? (c.un ? q : '✓') : '+') + '</button>';
+  }
+  function sgRow(r) {
+    const c = r.c;
+    const stats = [
+      r.s == null ? '' : '<span class="syn">' + (r.s < 0 ? '−' : '+') + Math.abs(Math.round(r.s * 100)) + '% synergy</span>',
+      r.inc == null ? '' : Math.round(r.inc * 100) + '% of decks'
+    ].filter(Boolean).join(' · ');
+    const flag = c.l === 'legal' ? '' : ' <span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
+    return '<li class="sg-row"><span class="sg-body"><span class="name">' + esc(c.n) + '</span> <span class="cost">' + syms(c.mc) + '</span>' + flag +
+      '<span class="type">' + esc(c.t) + '</span><span class="sg-stats">' + stats + '</span></span>' + (sg.mode === 'set' ? sgAddHtml(c) : '') + '</li>';
+  }
+  function renderSugg(more) {
+    const { rows, total } = suggRows();
+    if (!more) sg.shown = 0;
+    const next = rows.slice(sg.shown, sg.shown + 40);
+    if (!more) el.sgList.innerHTML = '';
+    el.sgList.insertAdjacentHTML('beforeend', next.map(sgRow).join(''));
+    sg.shown += next.length;
+    el.sgMore.hidden = sg.shown >= rows.length;
+    const th = sg.theme && sg.data ? ' for the ' + (sg.tags.find(t => t.s === sg.theme) || { v: sg.theme }).v + ' theme' : '';
+    el.sgMsg.textContent = rows.length
+      ? fmt(rows.length) + ' of EDHREC’s ' + fmt(total) + ' suggestions' + th + ' were printed before M15.' + (sg.mode === 'preview' ? ' Use as commander to start adding cards.' : '')
+      : 'None of EDHREC’s ' + fmt(total) + ' suggestions' + th + ' were printed before M15.';
+  }
+  function renderSuggTags() {
+    const tags = sg.tags || [];
+    el.sgTags.innerHTML = tags.length
+      ? '<button class="chip" type="button" data-tg="" aria-pressed="' + (!sg.theme) + '">All</button>' +
+        tags.map(t => '<button class="chip" type="button" data-tg="' + esc(t.s) + '" aria-pressed="' + (sg.theme === t.s) + '">' + esc(t.v) + ' <small>' + fmt(t.c) + '</small></button>').join('')
+      : '';
+  }
+  function refreshSuggAdds() {
+    if (!sg) return;
+    el.sgList.querySelectorAll('.sg-add').forEach(b => {
+      const c = cards[+b.dataset.sa]; if (!c) return;
+      const q = qtyOf(c.i);
+      b.classList.toggle('on', q > 0); b.textContent = q ? (c.un ? q : '✓') : '+'; b.setAttribute('aria-label', addLabel(c, q));
+    });
+  }
+  async function loadSugg(theme) {
+    const my = ++sg.req; sg.theme = theme;
+    el.sgMsg.textContent = 'Loading suggestions from EDHREC…'; el.sgList.innerHTML = ''; el.sgMore.hidden = true;
+    try {
+      const d = await edhrecGet(slugOf(sg.c.n), theme);
+      if (my !== sg.req) return;
+      sg.data = d; if (!theme) sg.tags = d.tags;
+      renderSuggTags(); renderSugg(false);
+    } catch (e) {
+      if (my !== sg.req) return;
+      sg.data = null; renderSuggTags();
+      el.sgMsg.textContent = e.kind === 'missing'
+        ? 'EDHREC has no page for ' + sg.c.n + (theme ? ' with that theme' : '') + '. Try Open on EDHREC above.'
+        : e.kind === 'net'
+          ? 'Could not load EDHREC data. Check your connection. EDHREC may also not allow this app to read its data. Try Open on EDHREC above.'
+          : 'EDHREC sent something unexpected (' + e.message + '). Try Open on EDHREC above.';
+    }
+  }
+  async function openSugg(c, mode) {
+    sg = { c, mode, theme: '', data: null, shown: 0, sort: 'syn', tags: [], req: 0 };
+    el.sgTitle.textContent = c.n; el.sgCI.innerHTML = ciPills(c.ci);
+    el.sgUse.hidden = mode !== 'preview';
+    el.sgLink.href = EDHREC_SITE + slugOf(c.n);
+    el.sgTags.innerHTML = ''; el.sgList.innerHTML = ''; el.sgMore.hidden = true; el.sgSort.value = 'syn';
+    el.sugg.hidden = false; document.body.style.overflow = 'hidden';
+    await loadSugg('');
+  }
+  function closeSugg() { el.sugg.hidden = true; document.body.style.overflow = (el.picker.hidden && el.deckSheet.hidden) ? '' : 'hidden'; }
   function setCmdr(id) {
     st.cmdr = id; findCmdr();
     const d = active(); d.cmdr = st.cmdr;
@@ -630,7 +886,7 @@ footer a{color:inherit}
     el.toast.textContent = msg; el.toast.classList.add('show');
     clearTimeout(toastT); toastT = setTimeout(() => el.toast.classList.remove('show'), 1800);
   }
-  function afterDeckChange() { renderBadge(); refreshAdds(); if (!el.deckSheet.hidden) renderDeck(); saveDecks(); }
+  function afterDeckChange() { renderBadge(); refreshAdds(); refreshSuggAdds(); if (!el.deckSheet.hidden) renderDeck(); saveDecks(); }
   function toggleCard(c) {
     const d = active(), q = d.cards[c.i] || 0;
     if (cmdrCard && c === cmdrCard) return toast('That is your commander');
@@ -686,6 +942,7 @@ footer a{color:inherit}
     el.deckCmdrName.textContent = cmdrCard ? cmdrCard.n : 'No commander yet';
     el.deckCmdrCI.innerHTML = cmdrCard ? ciPills(cmdrCard.ci) : '';
     el.deckCmdrBtn.textContent = cmdrCard ? 'Change' : 'Set commander';
+    el.deckIdeas.hidden = !cmdrCard;
     el.deckSumText.textContent = total + ' / 100';
     el.deckFill.style.width = Math.min(100, total) + '%';
     const issues = deckIssues();
@@ -807,10 +1064,34 @@ footer a{color:inherit}
     el.cmdrClear.addEventListener('click', () => setCmdr(''));
     el.pickClose.addEventListener('click', closePicker);
     let pt; el.pickQ.addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(renderPick, 100); });
-    el.pickList.addEventListener('click', e => { const b = e.target.closest('.pick'); if (!b) return; closePicker(); setCmdr(b.dataset.i); });
+    el.pickList.addEventListener('click', e => {
+      const s = e.target.closest('[data-s]');
+      if (s) { const c = idx.get(s.dataset.s); if (c) openSugg(c, 'preview'); return; }
+      const b = e.target.closest('.pick'); if (!b) return; closePicker(); setCmdr(b.dataset.i);
+    });
+    el.refineBtn.addEventListener('click', () => { const o = el.refine.hidden; el.refine.hidden = !o; el.refineBtn.setAttribute('aria-expanded', String(o)); });
+    el.pickCI.addEventListener('click', e => {
+      const b = e.target.closest('[data-pc]'); if (!b) return; const c = b.dataset.pc;
+      if (c === 'C') { const was = pk.ci.has('C'); pk.ci.clear(); if (!was) pk.ci.add('C'); }
+      else { pk.ci.delete('C'); pk.ci.has(c) ? pk.ci.delete(c) : pk.ci.add(c); }
+      renderPick();
+    });
+    el.pickMode.addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; pk.mode = b.dataset.pm; renderPick(); });
+    el.pickThemes.addEventListener('click', e => { const b = e.target.closest('[data-th]'); if (!b) return; const i = +b.dataset.th; pk.themes.has(i) ? pk.themes.delete(i) : pk.themes.add(i); renderPick(); });
+    el.pickMv.addEventListener('change', () => { pk.mv = el.pickMv.value; renderPick(); });
+    el.pickSort.addEventListener('change', () => { pk.sort = el.pickSort.value; renderPick(); });
+    el.pickReset.addEventListener('click', resetRefine);
+    el.cmdrIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
+    el.deckIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
+    el.sgClose.addEventListener('click', closeSugg);
+    el.sgUse.addEventListener('click', () => { const c = sg && sg.c; closeSugg(); if (c) { closePicker(); setCmdr(c.i); } });
+    el.sgTags.addEventListener('click', e => { const b = e.target.closest('[data-tg]'); if (!b || !sg) return; loadSugg(b.dataset.tg); });
+    el.sgSort.addEventListener('change', () => { if (!sg) return; sg.sort = el.sgSort.value; renderSugg(false); });
+    el.sgMore.addEventListener('click', () => renderSugg(true));
+    el.sgList.addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (b) toggleCard(cards[+b.dataset.sa]); });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
+      if (!el.sugg.hidden) closeSugg(); else if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
     });
     el.deckBtn.addEventListener('click', openDeck);
     el.deckClose.addEventListener('click', closeDeck);

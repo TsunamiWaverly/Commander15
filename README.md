@@ -37,3 +37,18 @@ Card data and images: Scryfall. Unofficial; not affiliated with Wizards of the C
   "Not in this format". Sideboard sections are skipped, and a `Commander` section sets the commander.
 - Export: Copy deck list (or Share on iPhone).
 - Decks are saved on the device.
+
+## Choosing a commander
+- **Set commander** opens a picker of every legendary creature (and any card that "can be your commander").
+  Search matches name, type line and rules text, with "quotes" and -exclusions, like the main search.
+- **Refine** narrows the list by color identity (exactly these colors, or these or fewer), max mana value,
+  and themes such as Tokens, Graveyard, +1/+1 counters or Sacrifice. Themes are guessed from the commander's
+  rules text, so treat them as a starting point. You can sort by EDHREC popularity.
+- **Ideas** (on every commander in the picker, and on the commander bar once one is set) shows EDHREC's
+  suggestions for that commander, limited to cards printed before M15, with the synergy score and the share of
+  decks that play each card. EDHREC's own theme tags (Reanimator, Mill and so on) switch the list. From the
+  picker it is a preview, with a **Use as commander** button. Once a commander is set, each suggestion has a
+  + button that adds it to your deck.
+- EDHREC has no official API. The app reads the same JSON pages the EDHREC site uses, one page when you open
+  Ideas, and keeps it for a week. If EDHREC blocks the request or has no page for a commander, the sheet says so
+  and links to the commander's page on edhrec.com.
