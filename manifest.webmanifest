@@ -1,0 +1,14 @@
+{
+  "name": "Pre-M15 Commander",
+  "short_name": "Pre-M15",
+  "description": "Search every Magic card printed before Magic 2015.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f161d",
+  "theme_color": "#17635f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

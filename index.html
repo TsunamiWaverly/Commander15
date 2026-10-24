@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2f5f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f161d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pre-M15">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Pre-M15 Commander</title>
+<style>
+/* Layout: sticky search header over one scrolling list of card rows; one data panel doubles as first-run screen.
+   Palette: cool slate neutrals tinted toward the teal accent; mana colors stay constant in both themes. */
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --surface-2:#e7ecf1; --fg:#141d26; --muted:#536271; --line:#d2dae2;
+  --accent:#17635f; --accent-fg:#ffffff; --danger:#a8281f;
+  --serif: ui-serif,"New York",Georgia,"Times New Roman",serif;
+  --sans: system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f161d; --surface:#172029; --surface-2:#212d39; --fg:#e6edf3; --muted:#93a2b1; --line:#2a3744;
+    --accent:#5fc4b8; --accent-fg:#08201d; --danger:#ff8f86;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:max(10px,env(safe-area-inset-top,0px));padding-bottom:10px;
+  margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+h1{margin:0;font:700 1.2rem/1.1 var(--serif);letter-spacing:.01em}
+h1 small{font:600 .72rem/1 var(--sans);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-left:6px}
+.ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:.85rem;color:var(--muted)}
+.ghost[aria-expanded="true"]{background:var(--surface-2);color:var(--fg)}
+#q{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.85rem;min-height:32px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+.chip.c{width:36px;height:36px;padding:0;display:grid;place-items:center;font-weight:700;border-radius:50%}
+.chip.c[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px;color:#141d26}
+.chip.c.W{background:#f6f1cf}.chip.c.U{background:#aed3f1}.chip.c.B{background:#8d827b;color:#fff}
+.chip.c.R{background:#f2a98c}.chip.c.G{background:#9ccfa7}.chip.c.C{background:#cfd3d8}
+.chip.c:not([aria-pressed="true"]){opacity:.55}
+.spacer{flex:1}
+#filters{margin-top:10px;display:grid;gap:10px}
+.field{display:grid;gap:4px}
+.field>label,.field>.lab{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-height:38px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:7px 12px;font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);font-weight:600}
+.row2{display:flex;flex-wrap:wrap;gap:14px}
+.check{display:flex;gap:8px;align-items:center;font-size:.95rem}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+
+main{padding-top:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.panel h2{margin:0 0 6px;font:700 1.15rem/1.2 var(--serif)}
+.panel p{margin:0 0 12px;color:var(--muted);font-size:.95rem;max-width:62ch}
+.btn{background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:11px 16px;font-weight:600}
+.btn:disabled{opacity:.6}
+.btn.alt{background:var(--surface-2);color:var(--fg)}
+.bar-track{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:12px 0 6px}
+.bar-fill{height:100%;width:0;background:var(--accent);transition:width .15s}
+.status{font-size:.9rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.err{color:var(--danger);font-size:.9rem;margin-top:8px}
+
+#summary{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:.85rem;margin:2px 0 8px;font-variant-numeric:tabular-nums}
+#clear{background:none;border:0;color:var(--accent);padding:4px 0;font-size:.85rem;font-weight:600}
+#results{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.row{display:flex;gap:12px;width:100%;text-align:left;background:none;border:0;padding:10px;align-items:flex-start}
+.thumb{width:58px;height:81px;flex:none;border-radius:4px;background:var(--surface-2);object-fit:cover}
+.thumb.none{display:block}
+.body{display:block;min-width:0;flex:1}
+.l1{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.name{font:700 1.02rem/1.25 var(--serif);min-width:0;overflow-wrap:anywhere}
+.cost{flex:none;white-space:nowrap;font-size:.9rem}
+.type{display:block;color:var(--muted);font-size:.85rem;margin-top:2px}
+.text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.88rem;margin-top:4px;white-space:pre-line}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.flag{color:var(--danger);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.68rem}
+.detail{padding:0 12px 14px;border-top:1px solid var(--line);display:grid;gap:10px;justify-items:start}
+.detail .big{width:min(100%,260px);aspect-ratio:488/680;border-radius:12px;background:var(--surface-2);margin-top:12px}
+.full{white-space:pre-line;font-size:.95rem;max-width:62ch}
+.facts{color:var(--muted);font-size:.85rem}
+.detail a{color:var(--accent);font-weight:600}
+#more{display:block;margin:14px auto 0}
+.empty{text-align:center;color:var(--muted);padding:32px 0}
+.sym{display:inline-grid;place-items:center;min-width:1.2em;height:1.2em;padding:0 .15em;border-radius:99px;font:700 .72em/1 var(--sans);
+  margin-right:2px;vertical-align:-.22em;background:#cfd3d8;color:#1a1a1a;border:1px solid rgba(0,0,0,.28)}
+.sym.W{background:#f6f1cf}.sym.U{background:#aed3f1}.sym.B{background:#8d827b;color:#fff}.sym.R{background:#f2a98c}.sym.G{background:#9ccfa7}
+.sym.T{border-radius:5px;background:var(--surface-2);color:var(--fg)}
+footer{margin-top:24px;color:var(--muted);font-size:.75rem;max-width:62ch}
+footer a{color:inherit}
+@media (prefers-reduced-motion: reduce){.bar-fill{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <h1>Pre-M15<small>Commander</small></h1>
+    <button id="dataBtn" class="ghost" type="button" aria-expanded="false" aria-controls="syncPanel">Data</button>
+  </div>
+  <input id="q" type="search" placeholder="Search name, type or rules text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search cards">
+  <div class="chips" id="ciChips" role="group" aria-label="Commander color identity">
+    <button class="chip c W" type="button" data-c="W" aria-pressed="false" aria-label="White">W</button>
+    <button class="chip c U" type="button" data-c="U" aria-pressed="false" aria-label="Blue">U</button>
+    <button class="chip c B" type="button" data-c="B" aria-pressed="false" aria-label="Black">B</button>
+    <button class="chip c R" type="button" data-c="R" aria-pressed="false" aria-label="Red">R</button>
+    <button class="chip c G" type="button" data-c="G" aria-pressed="false" aria-label="Green">G</button>
+    <button class="chip c C" type="button" data-c="C" aria-pressed="false" aria-label="Colorless">C</button>
+    <span class="spacer"></span>
+    <button id="filtersBtn" class="ghost" type="button" aria-expanded="false" aria-controls="filters">Filters</button>
+  </div>
+  <div id="filters" hidden>
+    <div class="field"><span class="lab">Color identity</span>
+      <div class="seg" id="ciMode">
+        <button type="button" data-m="within" aria-pressed="true">Fits within</button>
+        <button type="button" data-m="exact" aria-pressed="false">Exactly</button>
+      </div>
+    </div>
+    <div class="field"><span class="lab">Card type</span>
+      <div class="chips" id="typeChips" style="margin-top:0"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="mv">Max mana value</label>
+        <select id="mv"><option value="">Any</option></select></div>
+      <div class="field"><label for="sort">Sort by</label>
+        <select id="sort">
+          <option value="name">Name</option>
+          <option value="cmc">Mana value</option>
+          <option value="edhrec">Popularity (EDHREC)</option>
+          <option value="oldest">Oldest first</option>
+        </select></div>
+    </div>
+    <label class="check" for="hideBanned"><input id="hideBanned" type="checkbox"> Hide cards Scryfall lists as banned or not legal in Commander</label>
+  </div>
+</header>
+
+<main>
+  <section id="syncPanel" class="panel">
+    <h2 id="syncTitle">Download the card list</h2>
+    <p id="syncText">Every card with a printing before Magic 2015, using Scryfall's <code>date&lt;m15</code> query. It is fetched directly from Scryfall, saved on this device, and searchable offline afterwards. This usually takes under a minute on Wi-Fi.</p>
+    <button id="syncBtn" class="btn" type="button">Download cards</button>
+    <div id="progress" hidden>
+      <div class="bar-track"><div class="bar-fill" id="fill"></div></div>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="err" id="err" role="alert" hidden></div>
+  </section>
+
+  <div id="summary" hidden><span id="count"></span><button id="clear" type="button" hidden>Clear filters</button></div>
+  <ol id="results"></ol>
+  <div id="empty" class="empty" hidden>No cards match. Try fewer words or clear a filter.</div>
+  <button id="more" class="btn alt" type="button" hidden>Show more</button>
+  <footer>Card data and images from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>. Magic: The Gathering is a trademark of Wizards of the Coast. This app is unofficial.</footer>
+</main>
+
+<script>
+(() => {
+  'use strict';
+  const API = 'https://api.scryfall.com';
+  const QUERY = 'date<m15 game:paper';
+  const IMG_BASE = 'https://cards.scryfall.io/';
+  const PAGE = 40;
+  const TYPES = ['Creature','Instant','Sorcery','Artifact','Enchantment','Land','Planeswalker','Legendary'];
+  const BIT = {W:1,U:2,B:4,R:8,G:16};
+  const $ = id => document.getElementById(id);
+  const el = {
+    q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
+    syncPanel:$('syncPanel'), syncTitle:$('syncTitle'), syncText:$('syncText'), syncBtn:$('syncBtn'), progress:$('progress'),
+    fill:$('fill'), status:$('status'), err:$('err'), dataBtn:$('dataBtn'), filtersBtn:$('filtersBtn'), filters:$('filters'),
+    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned')
+  };
+
+  let cards = [];     // prepared records
+  let view = [];      // filtered + sorted
+  let shown = 0;
+  let meta = null;    // {syncedAt, count}
+  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false };
+
+  /* ---------- helpers ---------- */
+  const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const bitsOf = s => { let b = 0; for (const ch of s) b |= BIT[ch] || 0; return b; };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const fmt = n => Number(n).toLocaleString('en-US');
+  function syms(s) {
+    return esc(s).replace(/\{([^}]+)\}/g, (_, t) => {
+      const key = t.replace('/', '');
+      const cls = /^[WUBRG]$/.test(t) ? t : (t === 'T' ? 'T' : '');
+      return '<span class="sym ' + cls + '" aria-label="' + esc(t) + '">' + esc(key) + '</span>';
+    });
+  }
+  const ciPills = ci => ci ? ci.split('').map(c => '<span class="sym ' + c + '">' + c + '</span>').join('') : '<span class="sym">C</span>';
+
+  /* ---------- storage ---------- */
+  function openDb() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('prem15', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function kvGet(key) {
+    const db = await openDb();
+    return new Promise((res, rej) => {
+      const q = db.transaction('kv').objectStore('kv').get(key);
+      q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+    });
+  }
+  async function kvPut(entries) {
+    const db = await openDb();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('kv', 'readwrite');
+      const s = tx.objectStore('kv');
+      for (const [k, v] of entries) s.put(v, k);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+    });
+  }
+
+  /* ---------- sync ---------- */
+  function slim(c) {
+    const f = c.card_faces || [];
+    const join = (k, sep) => c[k] || f.map(x => x[k]).filter(Boolean).join(sep);
+    const imgs = c.image_uris || (f[0] && f[0].image_uris) || {};
+    const pw = c.power != null ? c.power : (f[0] && f[0].power);
+    const tg = c.toughness != null ? c.toughness : (f[0] && f[0].toughness);
+    const ly = c.loyalty != null ? c.loyalty : (f[0] && f[0].loyalty);
+    return {
+      i: c.oracle_id || c.id, n: c.name, mc: join('mana_cost', ' // '), cmc: c.cmc || 0,
+      t: join('type_line', ' // '), o: join('oracle_text', '\n———\n'),
+      pt: pw != null ? pw + '/' + tg : (ly != null ? 'Loyalty ' + ly : ''),
+      ci: 'WUBRG'.split('').filter(x => (c.color_identity || []).includes(x)).join(''),
+      l: (c.legalities && c.legalities.commander) || 'not_legal', s: c.set, y: (c.released_at || '').slice(0, 4),
+      im: (imgs.normal || '').replace(IMG_BASE + 'normal/', ''), u: c.scryfall_uri || '',
+      r: c.edhrec_rank == null ? null : c.edhrec_rank, k: (c.keywords || []).join(' ')
+    };
+  }
+  async function fetchJson(url) {
+    let lastErr;
+    for (let a = 0; a < 5; a++) {
+      try {
+        const r = await fetch(url, { headers: { Accept: 'application/json;q=0.9,*/*;q=0.8' } });
+        if (r.status === 429 || r.status >= 500) { lastErr = new Error('Scryfall is busy (' + r.status + ')'); await sleep(1000 * (a + 1)); continue; }
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.details || ('Scryfall returned ' + r.status));
+        return j;
+      } catch (e) {
+        lastErr = e;
+        if (e.name === 'TypeError') await sleep(800 * (a + 1)); else throw e;
+      }
+    }
+    throw lastErr;
+  }
+  let syncing = false;
+  async function sync() {
+    if (syncing) return;
+    syncing = true;
+    el.err.hidden = true; el.syncBtn.disabled = true; el.progress.hidden = false; el.fill.style.width = '0%';
+    el.status.textContent = 'Contacting Scryfall…';
+    try {
+      const out = [];
+      let total = null;
+      let url = API + '/cards/search?q=' + encodeURIComponent(QUERY) + '&unique=cards&order=name&prefer=oldest';
+      while (url) {
+        const res = await fetchJson(url);
+        if (total == null) total = res.total_cards;
+        for (const c of res.data) out.push(slim(c));
+        el.fill.style.width = Math.min(100, Math.round(out.length / total * 100)) + '%';
+        el.status.textContent = 'Downloaded ' + fmt(out.length) + ' of ' + fmt(total) + ' cards';
+        url = res.has_more ? res.next_page : null;
+        if (url) await sleep(110);
+      }
+      const m = { syncedAt: Date.now(), count: out.length };
+      el.status.textContent = 'Saving…';
+      await kvPut([['cards', out], ['meta', m]]);
+      meta = m; cards = prepare(out);
+      el.status.textContent = 'Done. ' + fmt(out.length) + ' cards saved on this device.';
+      el.progress.hidden = true;
+      afterData(); applyFilters(true);
+      setTimeout(() => { if (cards.length) el.syncPanel.hidden = true; el.dataBtn.setAttribute('aria-expanded', 'false'); }, 900);
+    } catch (e) {
+      el.err.textContent = 'Download failed: ' + (e && e.message ? e.message : e) + '. ' + (cards.length ? 'Your saved list is unchanged.' : 'Check your connection and try again.');
+      el.err.hidden = false; el.status.textContent = '';
+    } finally {
+      syncing = false; el.syncBtn.disabled = false;
+    }
+  }
+  function afterData() {
+    el.syncTitle.textContent = 'Card list';
+    el.syncText.textContent = fmt(cards.length) + ' cards, last updated ' + new Date(meta.syncedAt).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) + '. Update it to pick up new errata or legality changes.';
+    el.syncBtn.textContent = 'Update cards';
+    el.summary.hidden = false;
+  }
+
+  /* ---------- search ---------- */
+  function prepare(arr) {
+    return arr.map((c, x) => {
+      c.x = x; c.b = bitsOf(c.ci); c.nm = norm(c.n);
+      c.h = c.nm + '\n' + norm(c.t) + '\n' + norm(c.o) + '\n' + norm(c.k);
+      c.ty = norm(c.t);
+      return c;
+    });
+  }
+  function parseQuery(q) {
+    const out = []; const re = /(-?)(?:"([^"]+)"|(\S+))/g; let m;
+    while ((m = re.exec(q))) { const t = norm(m[2] || m[3]); if (t) out.push({ neg: !!m[1], t }); }
+    return out;
+  }
+  function applyFilters(reset) {
+    const terms = parseQuery(el.q.value);
+    const hasCI = st.ci.size > 0;
+    const mask = bitsOf([...st.ci].join(''));
+    const mv = st.mv === '' ? null : Number(st.mv);
+    const types = [...st.types].filter(t => t !== 'Legendary').map(t => t.toLowerCase());
+    const legendary = st.types.has('Legendary');
+    view = cards.filter(c => {
+      if (hasCI && (st.ciMode === 'within' ? (c.b & ~mask) : (c.b !== mask))) return false;
+      if (mv != null && c.cmc > mv) return false;
+      if (st.hideBanned && c.l !== 'legal') return false;
+      if (legendary && !c.ty.includes('legendary')) return false;
+      if (types.length && !types.some(t => c.ty.includes(t))) return false;
+      for (const t of terms) { if (c.h.includes(t.t) === t.neg) return false; }
+      return true;
+    });
+    const s = st.sort;
+    view.sort(s === 'cmc' ? (a, b) => a.cmc - b.cmc || (a.nm < b.nm ? -1 : 1)
+      : s === 'edhrec' ? (a, b) => (a.r == null) - (b.r == null) || a.r - b.r || (a.nm < b.nm ? -1 : 1)
+      : s === 'oldest' ? (a, b) => (a.y < b.y ? -1 : a.y > b.y ? 1 : (a.nm < b.nm ? -1 : 1))
+      : (a, b) => (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
+    const active = terms.length || hasCI || mv != null || types.length || legendary || st.hideBanned;
+    el.count.textContent = fmt(view.length) + (active ? ' of ' + fmt(cards.length) : '') + ' cards';
+    el.clear.hidden = !(active);
+    el.empty.hidden = view.length > 0 || !cards.length;
+    renderList(true);
+    saveState();
+  }
+  function cardHtml(c) {
+    const flag = c.l === 'legal' ? '' : '<span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
+    const img = c.im ? '<img class="thumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '">' : '<span class="thumb none"></span>';
+    return '<li class="card" data-x="' + c.x + '"><button class="row" type="button" aria-expanded="false">' + img +
+      '<span class="body"><span class="l1"><span class="name">' + esc(c.n) + '</span><span class="cost">' + syms(c.mc) + '</span></span>' +
+      '<span class="type">' + esc(c.t) + '</span>' +
+      (c.o ? '<span class="text">' + syms(c.o) + '</span>' : '') +
+      '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(c.s.toUpperCase()) + ' ' + esc(c.y) + '</span>' + flag + '</span></span></button></li>';
+  }
+  function detailHtml(c) {
+    return '<div class="detail">' + (c.im ? '<img class="big" alt="' + esc(c.n) + '" src="' + IMG_BASE + 'normal/' + esc(c.im) + '">' : '') +
+      '<div class="full">' + syms(c.o || 'No rules text.') + '</div>' +
+      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, 'Commander: ' + c.l.replace('_', ' ')].filter(Boolean).map(esc).join(' · ') + '</div>' +
+      (c.u ? '<a href="' + esc(c.u) + '" target="_blank" rel="noopener">View on Scryfall</a>' : '') + '</div>';
+  }
+  function renderList(reset) {
+    if (reset) { el.results.innerHTML = ''; shown = 0; }
+    const next = view.slice(shown, shown + PAGE);
+    el.results.insertAdjacentHTML('beforeend', next.map(cardHtml).join(''));
+    shown += next.length;
+    el.more.hidden = shown >= view.length;
+  }
+
+  /* ---------- state ---------- */
+  function saveState() {
+    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned })); } catch (e) {}
+  }
+  function loadState() {
+    try {
+      const s = JSON.parse(localStorage.getItem('prem15.state') || 'null');
+      if (!s) return;
+      st.ci = new Set(s.ci || []); st.ciMode = s.ciMode === 'exact' ? 'exact' : 'within';
+      st.types = new Set((s.types || []).filter(t => TYPES.includes(t)));
+      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned;
+    } catch (e) {}
+  }
+  function syncControls() {
+    el.ciChips.querySelectorAll('[data-c]').forEach(b => b.setAttribute('aria-pressed', st.ci.has(b.dataset.c)));
+    el.ciMode.querySelectorAll('[data-m]').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === st.ciMode));
+    el.typeChips.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', st.types.has(b.dataset.t)));
+    el.mv.value = st.mv; el.sort.value = st.sort; el.hideBanned.checked = st.hideBanned;
+  }
+
+  /* ---------- wiring ---------- */
+  function init() {
+    el.typeChips.innerHTML = TYPES.map(t => '<button class="chip" type="button" data-t="' + t + '" aria-pressed="false">' + t + '</button>').join('');
+    for (let i = 0; i <= 8; i++) el.mv.insertAdjacentHTML('beforeend', '<option value="' + i + '">' + i + '</option>');
+    loadState(); syncControls();
+
+    let timer;
+    el.q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => applyFilters(), 120); });
+    el.ciChips.addEventListener('click', e => {
+      const b = e.target.closest('[data-c]'); if (!b) return;
+      const c = b.dataset.c;
+      if (c === 'C') { const was = st.ci.has('C'); st.ci.clear(); if (!was) st.ci.add('C'); }
+      else { st.ci.delete('C'); st.ci.has(c) ? st.ci.delete(c) : st.ci.add(c); }
+      syncControls(); applyFilters();
+    });
+    el.ciMode.addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; st.ciMode = b.dataset.m; syncControls(); applyFilters(); });
+    el.typeChips.addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; const t = b.dataset.t; st.types.has(t) ? st.types.delete(t) : st.types.add(t); syncControls(); applyFilters(); });
+    el.mv.addEventListener('change', () => { st.mv = el.mv.value; applyFilters(); });
+    el.sort.addEventListener('change', () => { st.sort = el.sort.value; applyFilters(); });
+    el.hideBanned.addEventListener('change', () => { st.hideBanned = el.hideBanned.checked; applyFilters(); });
+    el.clear.addEventListener('click', () => {
+      el.q.value = ''; st.ci.clear(); st.types.clear(); st.mv = ''; st.hideBanned = false; st.ciMode = 'within';
+      syncControls(); applyFilters();
+    });
+    el.more.addEventListener('click', () => renderList(false));
+    el.results.addEventListener('click', e => {
+      const row = e.target.closest('.row'); if (!row) return;
+      const li = row.parentElement; const open = row.getAttribute('aria-expanded') === 'true';
+      const existing = li.querySelector('.detail');
+      if (open) { existing.hidden = true; row.setAttribute('aria-expanded', 'false'); return; }
+      if (!existing) li.insertAdjacentHTML('beforeend', detailHtml(cards[+li.dataset.x])); else existing.hidden = false;
+      row.setAttribute('aria-expanded', 'true');
+    });
+    el.filtersBtn.addEventListener('click', () => { const o = el.filters.hidden; el.filters.hidden = !o; el.filtersBtn.setAttribute('aria-expanded', String(o)); });
+    el.dataBtn.addEventListener('click', () => { const o = el.syncPanel.hidden; el.syncPanel.hidden = !o; el.dataBtn.setAttribute('aria-expanded', String(o)); });
+    el.syncBtn.addEventListener('click', sync);
+
+    boot();
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+  async function boot() {
+    try {
+      const [arr, m] = await Promise.all([kvGet('cards'), kvGet('meta')]);
+      if (arr && arr.length && m) {
+        meta = m; cards = prepare(arr); afterData();
+        el.syncPanel.hidden = true; el.dataBtn.setAttribute('aria-expanded', 'false');
+        applyFilters(true);
+        return;
+      }
+    } catch (e) { /* storage unavailable: fall through to first-run */ }
+    el.dataBtn.setAttribute('aria-expanded', 'true');
+  }
+  init();
+})();
+</script>
+</body>
+</html>
