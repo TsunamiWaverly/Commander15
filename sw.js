@@ -1,5 +1,5 @@
 // Caches the app shell so the app opens offline. Card data lives in IndexedDB, not here.
-const VERSION = 'prem15-v5';
+const VERSION = 'prem15-v6';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

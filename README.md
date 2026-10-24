@@ -52,3 +52,9 @@ Card data and images: Scryfall. Unofficial; not affiliated with Wizards of the C
 - EDHREC has no official API. The app reads the same JSON pages the EDHREC site uses, one page when you open
   Ideas, and keeps it for a week. If EDHREC blocks the request or has no page for a commander, the sheet says so
   and links to the commander's page on edhrec.com.
+
+## Seeing a card full size
+Tap any card image or name to open it full screen with the large picture and its full rules text. This works on
+the commander at the top (the picture is larger now and shows the first lines of its rules text), on result
+thumbnails and the picture inside an expanded result, on commanders in the picker, on EDHREC suggestions, and on
+the names in your deck list. Close it with the Close button (or Escape on a keyboard).

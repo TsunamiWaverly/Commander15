@@ -87,7 +87,7 @@ main{padding-top:12px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .rowwrap{display:flex;align-items:stretch}
 .row{display:flex;gap:12px;flex:1;min-width:0;text-align:left;background:none;border:0;padding:10px;align-items:flex-start}
-.thumb{width:58px;height:81px;flex:none;border-radius:4px;background:var(--surface-2);object-fit:cover}
+.thumb{cursor:zoom-in;width:58px;height:81px;flex:none;border-radius:4px;background:var(--surface-2);object-fit:cover}
 .thumb.none{display:block}
 .body{display:block;min-width:0;flex:1}
 .l1{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
@@ -98,7 +98,7 @@ main{padding-top:12px}
 .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .flag{color:var(--danger);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.68rem}
 .detail{padding:0 12px 14px;border-top:1px solid var(--line);display:grid;gap:10px;justify-items:start}
-.detail .big{width:min(100%,260px);aspect-ratio:488/680;border-radius:12px;background:var(--surface-2);margin-top:12px}
+.detail .big{cursor:zoom-in;width:min(100%,340px);aspect-ratio:488/680;border-radius:12px;background:var(--surface-2);margin-top:12px}
 .full{white-space:pre-line;font-size:.95rem;max-width:62ch}
 .facts{color:var(--muted);font-size:.85rem}
 .detail a{color:var(--accent);font-weight:600}
@@ -114,7 +114,26 @@ footer a{color:inherit}
 .cmdr-info{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:6px 8px}
 .cthumb{width:36px;height:50px;border-radius:3px;background:var(--surface-2);flex:none;object-fit:cover}
 .cmdr-txt{display:block;min-width:0;flex:1 1 140px}
-#cmdrInfo .cmdr-txt{flex:1 1 calc(100% - 52px)}
+#cmdrInfo .cmdr-txt{flex:1 1 calc(100% - 92px)}
+#cmdrInfo .cthumb{width:72px;height:100px;border-radius:5px}
+.thumbbtn{background:none;border:0;padding:0;flex:none;line-height:0;cursor:zoom-in}
+.cmdr-txt[data-view]{cursor:pointer}
+.cmdr-oracle{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:.82rem;margin:3px 0;white-space:pre-line}
+.pthumb{background:none;border:0;padding:0;flex:none;line-height:0;cursor:zoom-in}
+.pthumb img,.sthumb{width:44px;height:61px;border-radius:4px;background:var(--surface-2);object-fit:cover;display:block}
+.linkrow{background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.linkbtn{background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.sg-body.linkrow{display:flex;gap:10px;align-items:center}
+.sg-info{display:block;min-width:0;flex:1}
+.viewer{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;
+  padding:max(10px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
+.viewer-bar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.vw-name{flex:1;min-width:0;margin:0;font:700 1.1rem/1.2 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer-scroll{overflow:auto;flex:1;display:grid;gap:12px;justify-items:center;align-content:start;padding-bottom:max(28px,env(safe-area-inset-bottom,0px))}
+.vw-img{width:min(100%,520px);height:auto;aspect-ratio:488/680;border-radius:4.5%;background:var(--surface-2)}
+.vw-text{width:min(100%,520px);white-space:pre-line;font-size:1rem}
+.vw-facts{width:min(100%,520px);color:var(--muted);font-size:.85rem}
+.viewer a{color:var(--accent);font-weight:600}
 .cmdr-txt b{display:block;font:700 .95rem/1.2 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #cmdrSub{display:block;font-size:.75rem;color:var(--muted);margin-top:2px}
 .sheet{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;
@@ -186,8 +205,8 @@ footer a{color:inherit}
   <div class="cmdr" id="cmdrRow">
     <button id="cmdrSet" class="ghost" type="button">Set commander</button>
     <div class="cmdr-info" id="cmdrInfo" hidden>
-      <img class="cthumb" id="cmdrImg" alt="">
-      <span class="cmdr-txt"><b id="cmdrName"></b><span id="cmdrSub"></span></span>
+      <button id="cmdrView" class="thumbbtn" type="button" aria-label="View the commander card full size"><img class="cthumb" id="cmdrImg" alt=""></button>
+      <span class="cmdr-txt" id="cmdrTxt" data-view="cmdr"><b id="cmdrName"></b><span class="cmdr-oracle" id="cmdrText"></span><span id="cmdrSub"></span></span>
       <button id="cmdrIdeas" class="ghost" type="button">Ideas</button>
       <button id="cmdrChange" class="ghost" type="button">Change</button>
       <button id="cmdrClear" class="ghost" type="button" aria-label="Remove commander">✕</button>
@@ -256,7 +275,7 @@ footer a{color:inherit}
   <div class="deck-scroll">
     <div class="field"><label for="deckName">Deck name</label><input id="deckName" type="text" maxlength="60" autocomplete="off"></div>
     <div class="cmdr-info">
-      <span class="cmdr-txt"><b id="deckCmdrName"></b><span id="deckCmdrCI"></span></span>
+      <span class="cmdr-txt" data-view="cmdr"><b id="deckCmdrName"></b><span id="deckCmdrCI"></span></span>
       <button id="deckIdeas" class="ghost" type="button" hidden>Ideas</button>
       <button id="deckCmdrBtn" class="ghost" type="button">Set commander</button>
     </div>
@@ -280,6 +299,7 @@ footer a{color:inherit}
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 
 <div id="picker" class="sheet" role="dialog" aria-modal="true" aria-label="Choose a commander" hidden>
   <div class="sheet-bar">
@@ -340,6 +360,19 @@ footer a{color:inherit}
   </div>
 </div>
 
+<div id="viewer" class="viewer" role="dialog" aria-modal="true" aria-label="Card" hidden>
+  <div class="viewer-bar">
+    <h2 class="vw-name" id="vwName"></h2>
+    <button id="vwClose" class="ghost" type="button">Close</button>
+  </div>
+  <div class="viewer-scroll">
+    <img id="vwImg" class="vw-img" alt="">
+    <div id="vwText" class="vw-text"></div>
+    <div id="vwFacts" class="vw-facts"></div>
+    <a id="vwLink" href="https://scryfall.com" target="_blank" rel="noopener">View on Scryfall</a>
+  </div>
+</div>
+
 <script>
 (() => {
   'use strict';
@@ -362,6 +395,7 @@ footer a{color:inherit}
     picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
     refineBtn:$('refineBtn'), refine:$('refine'), pickCI:$('pickCI'), pickMode:$('pickMode'), pickThemes:$('pickThemes'), pickMv:$('pickMv'), pickSort:$('pickSort'), pickReset:$('pickReset'),
     cmdrIdeas:$('cmdrIdeas'), deckIdeas:$('deckIdeas'), sugg:$('sugg'), sgTitle:$('sgTitle'), sgClose:$('sgClose'), sgCI:$('sgCI'), sgUse:$('sgUse'), sgLink:$('sgLink'),
+    vwName:$('vwName'), vwClose:$('vwClose'), vwImg:$('vwImg'), vwText:$('vwText'), vwFacts:$('vwFacts'), vwLink:$('vwLink'), viewer:$('viewer'), cmdrView:$('cmdrView'), cmdrText:$('cmdrText'),
     sgTags:$('sgTags'), sgSort:$('sgSort'), sgMsg:$('sgMsg'), sgList:$('sgList'), sgMore:$('sgMore'),
     deckBtn:$('deckBtn'), deckCount:$('deckCount'), deckSheet:$('deckSheet'), deckSel:$('deckSel'), deckNew:$('deckNew'), deckClose:$('deckClose'),
     deckName:$('deckName'), deckCmdrName:$('deckCmdrName'), deckCmdrCI:$('deckCmdrCI'), deckCmdrBtn:$('deckCmdrBtn'),
@@ -628,10 +662,35 @@ footer a{color:inherit}
     el.cmdrSet.hidden = !!c; el.cmdrInfo.hidden = !c; el.ciField.hidden = !!c;
     el.ciChips.querySelectorAll('.chip.c').forEach(b => { b.hidden = !!c; });
     if (!c) return;
-    if (c.im) el.cmdrImg.src = IMG_BASE + 'small/' + c.im; else el.cmdrImg.removeAttribute('src');
+    if (c.im) el.cmdrImg.src = IMG_BASE + 'normal/' + c.im; else el.cmdrImg.removeAttribute('src');
+    el.cmdrText.innerHTML = syms(c.o || '');
     el.cmdrName.textContent = c.n;
     el.cmdrSub.innerHTML = 'Showing cards that fit ' + ciPills(c.ci);
   }
+  /* ---------- card viewer ---------- */
+  let viewing = null;
+  function openViewer(c) {
+    if (!c) return;
+    viewing = c;
+    el.vwName.textContent = c.n;
+    el.vwImg.hidden = !c.im; el.vwImg.alt = c.n;
+    if (c.im) {
+      // show the already-cached medium image at once, then swap in the large one when it has loaded
+      el.vwImg.src = IMG_BASE + 'normal/' + c.im;
+      const big = new Image();
+      big.onload = () => { if (viewing === c) el.vwImg.src = big.src; };
+      big.src = IMG_BASE + 'large/' + c.im;
+    } else el.vwImg.removeAttribute('src');
+    el.vwText.innerHTML = '<b>' + esc(c.n) + '</b> ' + syms(c.mc || '') + '\n' + esc(c.t) + (c.pt ? '  ' + esc(c.pt) : '') + '\n\n' + syms(c.o || 'No rules text.');
+    el.vwFacts.textContent = ['Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, (c.ex ? 'Unbanned in this format' : 'Commander: ' + c.l.replace('_', ' '))].join(' · ');
+    el.vwLink.hidden = !c.u; if (c.u) el.vwLink.href = c.u;
+    el.viewer.hidden = false; document.body.style.overflow = 'hidden';
+  }
+  function closeViewer() {
+    el.viewer.hidden = true; viewing = null;
+    document.body.style.overflow = (el.picker.hidden && el.deckSheet.hidden && el.sugg.hidden) ? '' : 'hidden';
+  }
+
   /* ---------- commander picker ---------- */
   // Themes are guessed from each commander's rules text, so they are a starting point, not an official tag.
   const THEMES = [
@@ -694,7 +753,8 @@ footer a{color:inherit}
     const list = all.slice(0, 60);
     el.pickHint.textContent = fmt(all.length) + ' possible commanders' + (all.length > 60 ? ' (showing 60)' : '');
     el.pickList.innerHTML = list.map(c =>
-      '<li class="pickrow"><button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
+      '<li class="pickrow">' + (c.im ? '<button class="pthumb" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size"><img loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '"></button>' : '') +
+      '<button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
       '<span class="type">' + esc(c.t) + '</span></span>' +
       (c.l === 'legal' ? '' : '<span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>') +
       '<span class="cost">' + ciPills(c.ci) + '</span></button>' +
@@ -770,8 +830,9 @@ footer a{color:inherit}
       r.inc == null ? '' : Math.round(r.inc * 100) + '% of decks'
     ].filter(Boolean).join(' · ');
     const flag = c.l === 'legal' ? '' : ' <span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
-    return '<li class="sg-row"><span class="sg-body"><span class="name">' + esc(c.n) + '</span> <span class="cost">' + syms(c.mc) + '</span>' + flag +
-      '<span class="type">' + esc(c.t) + '</span><span class="sg-stats">' + stats + '</span></span>' + (sg.mode === 'set' ? sgAddHtml(c) : '') + '</li>';
+    const th = c.im ? '<img class="sthumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '">' : '';
+    return '<li class="sg-row"><button class="sg-body linkrow" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size">' + th + '<span class="sg-info"><span class="name">' + esc(c.n) + '</span> <span class="cost">' + syms(c.mc) + '</span>' + flag +
+      '<span class="type">' + esc(c.t) + '</span><span class="sg-stats">' + stats + '</span></span></button>' + (sg.mode === 'set' ? sgAddHtml(c) : '') + '</li>';
   }
   function renderSugg(more) {
     const { rows, total } = suggRows();
@@ -933,7 +994,7 @@ footer a{color:inherit}
       ? '<button class="qb" type="button" data-act="dec" data-i="' + i + '" aria-label="Remove one ' + n + '">−</button><span class="qn">' + e.q + '</span><button class="qb" type="button" data-act="inc" data-i="' + i + '" aria-label="Add one ' + n + '">+</button>'
       : '<button class="qb" type="button" data-act="rm" data-i="' + i + '" aria-label="Remove ' + n + '">✕</button>';
     const warn = c.l === 'legal' ? '' : ' <span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
-    return '<li class="drow"><span class="dn">' + n + warn + '</span><span class="cost">' + syms(c.mc) + '</span><span class="qc">' + ctl + '</span></li>';
+    return '<li class="drow"><span class="dn"><button class="linkbtn" type="button" data-v="' + i + '">' + n + '</button>' + warn + '</span><span class="cost">' + syms(c.mc) + '</span><span class="qc">' + ctl + '</span></li>';
   }
   function renderDeck() {
     const d = active(), total = deckTotal();
@@ -1049,6 +1110,8 @@ footer a{color:inherit}
     el.results.addEventListener('click', e => {
       const ab = e.target.closest('.add');
       if (ab) { toggleCard(cards[+ab.closest('.card').dataset.x]); return; }
+      const pic = e.target.closest('.thumb, .big');
+      if (pic) { openViewer(cards[+pic.closest('.card').dataset.x]); return; }
       const row = e.target.closest('.row'); if (!row) return;
       const li = row.closest('.card'); const open = row.getAttribute('aria-expanded') === 'true';
       const existing = li.querySelector('.detail');
@@ -1082,6 +1145,12 @@ footer a{color:inherit}
     el.pickSort.addEventListener('change', () => { pk.sort = el.pickSort.value; renderPick(); });
     el.pickReset.addEventListener('click', resetRefine);
     el.cmdrIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
+    el.vwClose.addEventListener('click', closeViewer);
+    el.cmdrView.addEventListener('click', () => openViewer(cmdrCard));
+    document.addEventListener('click', e => {
+      const t = e.target.closest('.cmdr-txt[data-view]'); if (t) { openViewer(cmdrCard); return; }
+      const v = e.target.closest('[data-v]'); if (v) openViewer(idx.get(v.dataset.v));
+    });
     el.deckIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
     el.sgClose.addEventListener('click', closeSugg);
     el.sgUse.addEventListener('click', () => { const c = sg && sg.c; closeSugg(); if (c) { closePicker(); setCmdr(c.i); } });
@@ -1091,7 +1160,7 @@ footer a{color:inherit}
     el.sgList.addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (b) toggleCard(cards[+b.dataset.sa]); });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      if (!el.sugg.hidden) closeSugg(); else if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
+      if (!el.viewer.hidden) closeViewer(); else if (!el.sugg.hidden) closeSugg(); else if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
     });
     el.deckBtn.addEventListener('click', openDeck);
     el.deckClose.addEventListener('click', closeDeck);
