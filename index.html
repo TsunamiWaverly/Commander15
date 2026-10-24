@@ -210,7 +210,7 @@ footer a{color:inherit}
 <main>
   <section id="syncPanel" class="panel">
     <h2 id="syncTitle">Download the card list</h2>
-    <p id="syncText">Every card with a printing before Magic 2015, using Scryfall's <code>date&lt;m15</code> query. It is fetched directly from Scryfall, saved on this device, and searchable offline afterwards. This usually takes under a minute on Wi-Fi.</p>
+    <p id="syncText">Every card with a printing before Magic 2015, using Scryfall's <code>date&lt;m15</code> query. It is fetched directly from Scryfall, saved on this device, and searchable offline afterwards. This takes a minute or two on Wi-Fi, because Scryfall limits how fast it can be downloaded.</p>
     <button id="syncBtn" class="btn" type="button">Download cards</button>
     <div id="progress" hidden>
       <div class="bar-track"><div class="bar-fill" id="fill"></div></div>
@@ -362,52 +362,81 @@ footer a{color:inherit}
       r: c.edhrec_rank == null ? null : c.edhrec_rank, k: (c.keywords || []).join(' ')
     };
   }
+  // Scryfall allows 2 /cards/search requests per second and blocks callers for 30 seconds after that.
+  // Pace requests 600 ms apart, and when blocked wait it out instead of retrying right away.
+  let lastReq = 0;
+  async function pace() {
+    const wait = lastReq + 600 - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastReq = Date.now();
+  }
+  const RETRY_WAITS = [3, 32, 32, 65]; // seconds before each retry of the same page
+  async function countdown(secs, why) {
+    for (let s = secs; s > 0; s--) { el.status.textContent = why + ' Retrying in ' + s + 's…'; await sleep(1000); }
+  }
   async function fetchJson(url) {
     let lastErr;
-    for (let a = 0; a < 5; a++) {
+    for (let a = 0; a <= RETRY_WAITS.length; a++) {
+      let retryAfter = 0, why = '';
       try {
+        await pace();
         const r = await fetch(url, { headers: { Accept: 'application/json;q=0.9,*/*;q=0.8' } });
-        if (r.status === 429 || r.status >= 500) { lastErr = new Error('Scryfall is busy (' + r.status + ')'); await sleep(1000 * (a + 1)); continue; }
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.details || ('Scryfall returned ' + r.status));
-        return j;
+        if (r.status === 429 || r.status >= 500) {
+          retryAfter = parseInt(r.headers.get('Retry-After') || '0', 10) || 0;
+          why = r.status === 429 ? 'Scryfall asked us to slow down.' : 'Scryfall is busy (' + r.status + ').';
+          lastErr = new Error(why);
+        } else {
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.details || ('Scryfall returned ' + r.status));
+          return j;
+        }
       } catch (e) {
-        lastErr = e;
-        if (e.name === 'TypeError') await sleep(800 * (a + 1)); else throw e;
+        if (e.name !== 'TypeError') throw e;
+        // Safari reports a blocked or dropped request as "Load failed" (Chrome: "Failed to fetch").
+        lastErr = e; why = 'Scryfall stopped responding.';
       }
+      if (a === RETRY_WAITS.length) break;
+      await countdown(Math.max(RETRY_WAITS[a], retryAfter), why);
     }
     throw lastErr;
   }
   let syncing = false;
+  let partial = null; // {out, total, url}: kept after a failure so the download resumes instead of restarting
   async function sync() {
     if (syncing) return;
     syncing = true;
-    el.err.hidden = true; el.syncBtn.disabled = true; el.progress.hidden = false; el.fill.style.width = '0%';
-    el.status.textContent = 'Contacting Scryfall…';
+    el.err.hidden = true; el.syncBtn.disabled = true; el.progress.hidden = false;
     try {
-      const out = [];
-      let total = null;
-      let url = API + '/cards/search?q=' + encodeURIComponent(QUERY) + '&unique=cards&order=name&prefer=oldest';
-      while (url) {
-        const res = await fetchJson(url);
-        if (total == null) total = res.total_cards;
-        for (const c of res.data) out.push(slim(c));
-        el.fill.style.width = Math.min(100, Math.round(out.length / total * 100)) + '%';
-        el.status.textContent = 'Downloaded ' + fmt(out.length) + ' of ' + fmt(total) + ' cards';
-        url = res.has_more ? res.next_page : null;
-        if (url) await sleep(110);
+      if (!partial) partial = { out: [], total: null, url: API + '/cards/search?q=' + encodeURIComponent(QUERY) + '&unique=cards&order=name&prefer=oldest' };
+      const p = partial;
+      if (!p.out.length) el.fill.style.width = '0%';
+      el.status.textContent = p.out.length ? 'Resuming…' : 'Contacting Scryfall…';
+      while (p.url) {
+        const res = await fetchJson(p.url);
+        if (p.total == null) p.total = res.total_cards;
+        for (const c of res.data) p.out.push(slim(c));
+        el.fill.style.width = Math.min(100, Math.round(p.out.length / p.total * 100)) + '%';
+        el.status.textContent = 'Downloaded ' + fmt(p.out.length) + ' of ' + fmt(p.total) + ' cards';
+        p.url = res.has_more ? res.next_page : null;
       }
+      const out = p.out;
       const m = { syncedAt: Date.now(), count: out.length };
       el.status.textContent = 'Saving…';
       await kvPut([['cards', out], ['meta', m]]);
+      partial = null;
       meta = m; cards = prepare(out); findCmdr(); renderCmdr();
       el.status.textContent = 'Done. ' + fmt(out.length) + ' cards saved on this device.';
       el.progress.hidden = true;
       afterData(); applyFilters(true);
       setTimeout(() => { if (cards.length) el.syncPanel.hidden = true; el.dataBtn.setAttribute('aria-expanded', 'false'); }, 900);
     } catch (e) {
-      el.err.textContent = 'Download failed: ' + (e && e.message ? e.message : e) + '. ' + (cards.length ? 'Your saved list is unchanged.' : 'Check your connection and try again.');
+      const got = partial && partial.out.length;
+      const dropped = e && e.name === 'TypeError';
+      el.err.textContent = 'Download stopped' + (got ? ' at ' + fmt(got) + ' of ' + fmt(partial.total || 0) + ' cards' : '') + '. ' +
+        (dropped ? 'Scryfall stopped responding. It limits downloads and blocks callers for 30 seconds when that limit is hit.' : (e && e.message ? e.message : String(e))) +
+        (got ? ' Tap Resume to continue where it left off.' : '') + (cards.length ? ' Your saved list is unchanged.' : '');
       el.err.hidden = false; el.status.textContent = '';
+      el.syncBtn.textContent = got ? 'Resume download' : (cards.length ? 'Update cards' : 'Download cards');
     } finally {
       syncing = false; el.syncBtn.disabled = false;
     }

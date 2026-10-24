@@ -23,7 +23,7 @@ Files will not work, because phones block storage and service workers on file://
   run in that identity; "Exactly" shows only that identity.
 - Filters: card type, max mana value, sort (name, mana value, EDHREC popularity, oldest).
 - Cards Scryfall lists as banned or not legal in Commander are flagged; a checkbox hides them.
-- Data > Update cards refreshes the list.
+- Data > Update cards refreshes the list. Scryfall allows only 2 searches a second, so the download takes a minute or two. If Scryfall blocks it, the app waits and retries, and if it still stops you can tap Resume to continue from where it left off.
 
 Card data and images: Scryfall. Unofficial; not affiliated with Wizards of the Coast.
 
