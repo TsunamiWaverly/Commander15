@@ -48,7 +48,7 @@ h1{margin:0;font:700 1.2rem/1.1 var(--serif);letter-spacing:.01em}
 h1 small{font:600 .72rem/1 var(--sans);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-left:6px}
 .ghost{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:.85rem;color:var(--muted)}
 .ghost[aria-expanded="true"]{background:var(--surface-2);color:var(--fg)}
-#q{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px}
+#q,#pickQ{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:.85rem;min-height:32px}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
@@ -109,6 +109,19 @@ main{padding-top:12px}
 .sym.T{border-radius:5px;background:var(--surface-2);color:var(--fg)}
 footer{margin-top:24px;color:var(--muted);font-size:.75rem;max-width:62ch}
 footer a{color:inherit}
+.cmdr{margin-top:8px}
+.cmdr-info{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:6px 8px}
+.cthumb{width:36px;height:50px;border-radius:3px;background:var(--surface-2);flex:none;object-fit:cover}
+.cmdr-txt{display:block;min-width:0;flex:1}
+.cmdr-txt b{display:block;font:700 .95rem/1.2 var(--serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cmdrSub{display:block;font-size:.75rem;color:var(--muted);margin-top:2px}
+.sheet{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;
+  padding:max(10px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
+.sheet-bar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+#pickHint{margin-bottom:8px}
+#pickList{list-style:none;margin:0;padding:0 0 max(24px,env(safe-area-inset-bottom,0px));overflow:auto;flex:1;display:grid;gap:6px;align-content:start}
+.pick{width:100%;text-align:left;display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.pick .cost{display:flex;gap:2px}
 @media (prefers-reduced-motion: reduce){.bar-fill{transition:none}}
 </style>
 </head>
@@ -119,6 +132,15 @@ footer a{color:inherit}
     <button id="dataBtn" class="ghost" type="button" aria-expanded="false" aria-controls="syncPanel">Data</button>
   </div>
   <input id="q" type="search" placeholder="Search name, type or rules text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search cards">
+  <div class="cmdr" id="cmdrRow">
+    <button id="cmdrSet" class="ghost" type="button">Set commander</button>
+    <div class="cmdr-info" id="cmdrInfo" hidden>
+      <img class="cthumb" id="cmdrImg" alt="">
+      <span class="cmdr-txt"><b id="cmdrName"></b><span id="cmdrSub"></span></span>
+      <button id="cmdrChange" class="ghost" type="button">Change</button>
+      <button id="cmdrClear" class="ghost" type="button" aria-label="Remove commander">✕</button>
+    </div>
+  </div>
   <div class="chips" id="ciChips" role="group" aria-label="Commander color identity">
     <button class="chip c W" type="button" data-c="W" aria-pressed="false" aria-label="White">W</button>
     <button class="chip c U" type="button" data-c="U" aria-pressed="false" aria-label="Blue">U</button>
@@ -130,7 +152,7 @@ footer a{color:inherit}
     <button id="filtersBtn" class="ghost" type="button" aria-expanded="false" aria-controls="filters">Filters</button>
   </div>
   <div id="filters" hidden>
-    <div class="field"><span class="lab">Color identity</span>
+    <div class="field" id="ciField"><span class="lab">Color identity</span>
       <div class="seg" id="ciMode">
         <button type="button" data-m="within" aria-pressed="true">Fits within</button>
         <button type="button" data-m="exact" aria-pressed="false">Exactly</button>
@@ -173,6 +195,15 @@ footer a{color:inherit}
   <footer>Card data and images from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>. Magic: The Gathering is a trademark of Wizards of the Coast. This app is unofficial.</footer>
 </main>
 
+<div id="picker" class="sheet" role="dialog" aria-modal="true" aria-label="Choose a commander" hidden>
+  <div class="sheet-bar">
+    <input id="pickQ" type="search" placeholder="Search legendary creatures" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search commanders">
+    <button id="pickClose" class="ghost" type="button">Close</button>
+  </div>
+  <div id="pickHint" class="status" aria-live="polite"></div>
+  <ul id="pickList"></ul>
+</div>
+
 <script>
 (() => {
   'use strict';
@@ -187,14 +218,18 @@ footer a{color:inherit}
     q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
     syncPanel:$('syncPanel'), syncTitle:$('syncTitle'), syncText:$('syncText'), syncBtn:$('syncBtn'), progress:$('progress'),
     fill:$('fill'), status:$('status'), err:$('err'), dataBtn:$('dataBtn'), filtersBtn:$('filtersBtn'), filters:$('filters'),
-    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned')
+    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned'),
+    cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
+    cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
+    picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList')
   };
 
   let cards = [];     // prepared records
   let view = [];      // filtered + sorted
   let shown = 0;
   let meta = null;    // {syncedAt, count}
-  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false };
+  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false, cmdr:'' };
+  let cmdrCard = null; // the chosen commander's record, or null
 
   /* ---------- helpers ---------- */
   const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -293,7 +328,7 @@ footer a{color:inherit}
       const m = { syncedAt: Date.now(), count: out.length };
       el.status.textContent = 'Saving…';
       await kvPut([['cards', out], ['meta', m]]);
-      meta = m; cards = prepare(out);
+      meta = m; cards = prepare(out); findCmdr(); renderCmdr();
       el.status.textContent = 'Done. ' + fmt(out.length) + ' cards saved on this device.';
       el.progress.hidden = true;
       afterData(); applyFilters(true);
@@ -318,6 +353,7 @@ footer a{color:inherit}
       c.x = x; c.b = bitsOf(c.ci); c.nm = norm(c.n);
       c.h = c.nm + '\n' + norm(c.t) + '\n' + norm(c.o) + '\n' + norm(c.k);
       c.ty = norm(c.t);
+      c.cm = (c.ty.includes('legendary') && c.ty.includes('creature')) || /can be your commander/i.test(c.o);
       return c;
     });
   }
@@ -328,13 +364,16 @@ footer a{color:inherit}
   }
   function applyFilters(reset) {
     const terms = parseQuery(el.q.value);
-    const hasCI = st.ci.size > 0;
-    const mask = bitsOf([...st.ci].join(''));
+    const cm = cmdrCard;
+    const hasCI = !!cm || st.ci.size > 0;
+    const within = cm ? true : st.ciMode === 'within';
+    const mask = cm ? cm.b : bitsOf([...st.ci].join(''));
     const mv = st.mv === '' ? null : Number(st.mv);
     const types = [...st.types].filter(t => t !== 'Legendary').map(t => t.toLowerCase());
     const legendary = st.types.has('Legendary');
     view = cards.filter(c => {
-      if (hasCI && (st.ciMode === 'within' ? (c.b & ~mask) : (c.b !== mask))) return false;
+      if (cm && c === cm) return false;
+      if (hasCI && (within ? (c.b & ~mask) : (c.b !== mask))) return false;
       if (mv != null && c.cmc > mv) return false;
       if (st.hideBanned && c.l !== 'legal') return false;
       if (legendary && !c.ty.includes('legendary')) return false;
@@ -348,7 +387,7 @@ footer a{color:inherit}
       : s === 'oldest' ? (a, b) => (a.y < b.y ? -1 : a.y > b.y ? 1 : (a.nm < b.nm ? -1 : 1))
       : (a, b) => (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
     const active = terms.length || hasCI || mv != null || types.length || legendary || st.hideBanned;
-    el.count.textContent = fmt(view.length) + (active ? ' of ' + fmt(cards.length) : '') + ' cards';
+    el.count.textContent = fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
     el.clear.hidden = !(active);
     el.empty.hidden = view.length > 0 || !cards.length;
     renderList(true);
@@ -379,7 +418,7 @@ footer a{color:inherit}
 
   /* ---------- state ---------- */
   function saveState() {
-    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned })); } catch (e) {}
+    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned, cmdr:st.cmdr })); } catch (e) {}
   }
   function loadState() {
     try {
@@ -387,7 +426,7 @@ footer a{color:inherit}
       if (!s) return;
       st.ci = new Set(s.ci || []); st.ciMode = s.ciMode === 'exact' ? 'exact' : 'within';
       st.types = new Set((s.types || []).filter(t => TYPES.includes(t)));
-      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned;
+      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
     } catch (e) {}
   }
   function syncControls() {
@@ -396,6 +435,39 @@ footer a{color:inherit}
     el.typeChips.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', st.types.has(b.dataset.t)));
     el.mv.value = st.mv; el.sort.value = st.sort; el.hideBanned.checked = st.hideBanned;
   }
+
+  /* ---------- commander ---------- */
+  function findCmdr() {
+    cmdrCard = st.cmdr ? (cards.find(c => c.i === st.cmdr) || null) : null;
+    if (!cmdrCard) st.cmdr = '';
+  }
+  function renderCmdr() {
+    const c = cmdrCard;
+    el.cmdrSet.hidden = !!c; el.cmdrInfo.hidden = !c; el.ciField.hidden = !!c;
+    el.ciChips.querySelectorAll('.chip.c').forEach(b => { b.hidden = !!c; });
+    if (!c) return;
+    if (c.im) el.cmdrImg.src = IMG_BASE + 'small/' + c.im; else el.cmdrImg.removeAttribute('src');
+    el.cmdrName.textContent = c.n;
+    el.cmdrSub.innerHTML = 'Showing cards that fit ' + ciPills(c.ci);
+  }
+  function renderPick() {
+    const t = norm(el.pickQ.value.trim());
+    const all = cards.filter(c => c.cm && (!t || c.nm.includes(t)));
+    const list = all.slice(0, 60);
+    el.pickHint.textContent = fmt(all.length) + ' possible commanders' + (all.length > 60 ? '. Showing the first 60, keep typing to narrow.' : '');
+    el.pickList.innerHTML = list.map(c =>
+      '<li><button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
+      '<span class="type">' + esc(c.t) + '</span></span>' +
+      (c.l === 'legal' ? '' : '<span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>') +
+      '<span class="cost">' + ciPills(c.ci) + '</span></button></li>').join('');
+  }
+  function openPicker() {
+    if (!cards.length) { el.syncPanel.hidden = false; el.dataBtn.setAttribute('aria-expanded', 'true'); return; }
+    el.picker.hidden = false; el.pickQ.value = ''; renderPick();
+    document.body.style.overflow = 'hidden'; el.pickQ.focus();
+  }
+  function closePicker() { el.picker.hidden = true; document.body.style.overflow = ''; }
+  function setCmdr(id) { st.cmdr = id; findCmdr(); renderCmdr(); applyFilters(); }
 
   /* ---------- wiring ---------- */
   function init() {
@@ -433,6 +505,13 @@ footer a{color:inherit}
     el.filtersBtn.addEventListener('click', () => { const o = el.filters.hidden; el.filters.hidden = !o; el.filtersBtn.setAttribute('aria-expanded', String(o)); });
     el.dataBtn.addEventListener('click', () => { const o = el.syncPanel.hidden; el.syncPanel.hidden = !o; el.dataBtn.setAttribute('aria-expanded', String(o)); });
     el.syncBtn.addEventListener('click', sync);
+    el.cmdrSet.addEventListener('click', openPicker);
+    el.cmdrChange.addEventListener('click', openPicker);
+    el.cmdrClear.addEventListener('click', () => setCmdr(''));
+    el.pickClose.addEventListener('click', closePicker);
+    let pt; el.pickQ.addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(renderPick, 100); });
+    el.pickList.addEventListener('click', e => { const b = e.target.closest('.pick'); if (!b) return; closePicker(); setCmdr(b.dataset.i); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !el.picker.hidden) closePicker(); });
 
     boot();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -441,7 +520,7 @@ footer a{color:inherit}
     try {
       const [arr, m] = await Promise.all([kvGet('cards'), kvGet('meta')]);
       if (arr && arr.length && m) {
-        meta = m; cards = prepare(arr); afterData();
+        meta = m; cards = prepare(arr); findCmdr(); renderCmdr(); afterData();
         el.syncPanel.hidden = true; el.dataBtn.setAttribute('aria-expanded', 'false');
         applyFilters(true);
         return;

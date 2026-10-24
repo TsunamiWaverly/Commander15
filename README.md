@@ -18,7 +18,8 @@ Files will not work, because phones block storage and service workers on file://
 
 ## Using it
 - Search words are ANDed. Use "quotes" for a phrase and a leading minus to exclude (add -black).
-- Color buttons are your commander's colors: "Fits within" shows every card you can legally
+- Tap "Set commander", pick a legendary creature, and every result is limited to cards that fit its color identity (the commander itself is hidden). Change or remove it any time.
+- Without a commander, the color buttons are your commander's colors: "Fits within" shows every card you can legally
   run in that identity; "Exactly" shows only that identity.
 - Filters: card type, max mana value, sort (name, mana value, EDHREC popularity, oldest).
 - Cards Scryfall lists as banned or not legal in Commander are flagged; a checkbox hides them.
