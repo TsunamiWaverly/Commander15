@@ -213,6 +213,8 @@ footer a{color:inherit}
   const PAGE = 40;
   const TYPES = ['Creature','Instant','Sorcery','Artifact','Enchantment','Land','Planeswalker','Legendary'];
   const BIT = {W:1,U:2,B:4,R:8,G:16};
+  // Cards this format allows even though Scryfall lists them as banned in Commander. Add exact card names here.
+  const UNBANNED = new Set(['Prophet of Kruphix', 'Mana Crypt', 'Iona, Shield of Emeria'].map(n => n.toLowerCase()));
   const $ = id => document.getElementById(id);
   const el = {
     q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
@@ -353,6 +355,7 @@ footer a{color:inherit}
       c.x = x; c.b = bitsOf(c.ci); c.nm = norm(c.n);
       c.h = c.nm + '\n' + norm(c.t) + '\n' + norm(c.o) + '\n' + norm(c.k);
       c.ty = norm(c.t);
+      if (UNBANNED.has(c.nm)) { c.ex = c.l !== 'legal'; c.l = 'legal'; }
       c.cm = (c.ty.includes('legendary') && c.ty.includes('creature')) || /can be your commander/i.test(c.o);
       return c;
     });
@@ -405,7 +408,7 @@ footer a{color:inherit}
   function detailHtml(c) {
     return '<div class="detail">' + (c.im ? '<img class="big" alt="' + esc(c.n) + '" src="' + IMG_BASE + 'normal/' + esc(c.im) + '">' : '') +
       '<div class="full">' + syms(c.o || 'No rules text.') + '</div>' +
-      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, 'Commander: ' + c.l.replace('_', ' ')].filter(Boolean).map(esc).join(' · ') + '</div>' +
+      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, (c.ex ? 'Unbanned in this format' : 'Commander: ' + c.l.replace('_', ' '))].filter(Boolean).map(esc).join(' · ') + '</div>' +
       (c.u ? '<a href="' + esc(c.u) + '" target="_blank" rel="noopener">View on Scryfall</a>' : '') + '</div>';
   }
   function renderList(reset) {
