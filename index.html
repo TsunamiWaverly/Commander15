@@ -85,7 +85,8 @@ main{padding-top:12px}
 #clear{background:none;border:0;color:var(--accent);padding:4px 0;font-size:.85rem;font-weight:600}
 #results{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.row{display:flex;gap:12px;width:100%;text-align:left;background:none;border:0;padding:10px;align-items:flex-start}
+.rowwrap{display:flex;align-items:stretch}
+.row{display:flex;gap:12px;flex:1;min-width:0;text-align:left;background:none;border:0;padding:10px;align-items:flex-start}
 .thumb{width:58px;height:81px;flex:none;border-radius:4px;background:var(--surface-2);object-fit:cover}
 .thumb.none{display:block}
 .body{display:block;min-width:0;flex:1}
@@ -122,14 +123,44 @@ footer a{color:inherit}
 #pickList{list-style:none;margin:0;padding:0 0 max(24px,env(safe-area-inset-bottom,0px));overflow:auto;flex:1;display:grid;gap:6px;align-content:start}
 .pick{width:100%;text-align:left;display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .pick .cost{display:flex;gap:2px}
-@media (prefers-reduced-motion: reduce){.bar-fill{transition:none}}
+.barbtns{display:flex;gap:8px}
+.barbtns b{font-variant-numeric:tabular-nums}
+.add{flex:none;width:52px;border:0;border-left:1px solid var(--line);background:none;font-size:1.4rem;font-weight:700;color:var(--accent)}
+.add.on{background:var(--accent);color:var(--accent-fg)}
+.deck-scroll{overflow:auto;flex:1;display:grid;gap:12px;align-content:start;padding-bottom:max(28px,env(safe-area-inset-bottom,0px))}
+#deckSel{flex:1;min-width:0}
+#deckName{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:16px}
+.sumrow{display:flex;align-items:baseline;gap:8px}
+.sumrow b{font:700 1.5rem/1 var(--serif);font-variant-numeric:tabular-nums}
+.issues ul{margin:0;padding-left:1.1rem;color:var(--danger);font-size:.88rem;display:grid;gap:4px}
+.issues .ok{margin:0;color:var(--accent);font-size:.9rem;font-weight:600}
+.curve{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;height:110px}
+.cb{display:grid;grid-template-rows:16px 1fr 16px;height:100%;text-align:center;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.cbar{align-self:end;justify-self:center;width:70%;background:var(--accent);border-radius:3px 3px 0 0}
+.gh{margin:6px 0 0;font:700 .8rem/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.gh span{font-variant-numeric:tabular-nums;margin-left:4px}
+.dl{list-style:none;margin:6px 0 0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.drow{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-top:1px solid var(--line);min-height:44px}
+.drow:first-child{border-top:0}
+.dn{flex:1;min-width:0;font-family:var(--serif);font-weight:600;overflow-wrap:anywhere}
+.qc{display:flex;align-items:center;gap:2px;flex:none}
+.qb{width:40px;height:40px;border:0;background:none;font-size:1.1rem;color:var(--muted);border-radius:8px}
+.qn{min-width:1.4em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
+.io{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.io summary{cursor:pointer;font-weight:600}
+.io textarea{width:100%;margin-top:10px;min-height:150px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font:16px/1.4 ui-monospace,Menlo,monospace}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.danger{color:var(--danger)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom,0px));z-index:60;background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:.9rem;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .18s;text-align:center}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){.bar-fill,.toast{transition:none}}
 </style>
 </head>
 <body>
 <header class="top">
   <div class="bar">
     <h1>Pre-M15<small>Commander</small></h1>
-    <button id="dataBtn" class="ghost" type="button" aria-expanded="false" aria-controls="syncPanel">Data</button>
+    <span class="barbtns"><button id="deckBtn" class="ghost" type="button">Deck <b id="deckCount">0</b></button><button id="dataBtn" class="ghost" type="button" aria-expanded="false" aria-controls="syncPanel">Data</button></span>
   </div>
   <input id="q" type="search" placeholder="Search name, type or rules text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search cards">
   <div class="cmdr" id="cmdrRow">
@@ -195,6 +226,39 @@ footer a{color:inherit}
   <footer>Card data and images from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>. Magic: The Gathering is a trademark of Wizards of the Coast. This app is unofficial.</footer>
 </main>
 
+<div id="deckSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Deck builder" hidden>
+  <div class="sheet-bar">
+    <select id="deckSel" aria-label="Choose deck"></select>
+    <button id="deckNew" class="ghost" type="button">New</button>
+    <button id="deckClose" class="ghost" type="button">Close</button>
+  </div>
+  <div class="deck-scroll">
+    <div class="field"><label for="deckName">Deck name</label><input id="deckName" type="text" maxlength="60" autocomplete="off"></div>
+    <div class="cmdr-info">
+      <span class="cmdr-txt"><b id="deckCmdrName"></b><span id="deckCmdrCI"></span></span>
+      <button id="deckCmdrBtn" class="ghost" type="button">Set commander</button>
+    </div>
+    <div class="sumrow"><b id="deckSumText">0 / 100</b><span class="status">cards, commander included</span></div>
+    <div class="bar-track"><div class="bar-fill" id="deckFill"></div></div>
+    <div id="deckIssues" class="issues" aria-live="polite"></div>
+    <div class="field"><span class="lab">Mana curve (lands excluded)</span><div id="curve" class="curve"></div></div>
+    <div id="deckList"></div>
+    <details class="io">
+      <summary>Import, export or delete</summary>
+      <textarea id="ioText" placeholder="Paste a list here, one card per line, like: 1 Sol Ring" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="Deck list text"></textarea>
+      <div class="actions">
+        <button id="ioCopy" class="btn alt" type="button">Copy deck list</button>
+        <button id="ioShare" class="btn alt" type="button" hidden>Share</button>
+        <button id="ioImport" class="btn" type="button">Import into deck</button>
+        <button id="deckDel" class="ghost danger" type="button">Delete deck</button>
+      </div>
+      <div id="ioMsg" class="status" aria-live="polite"></div>
+    </details>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <div id="picker" class="sheet" role="dialog" aria-modal="true" aria-label="Choose a commander" hidden>
   <div class="sheet-bar">
     <input id="pickQ" type="search" placeholder="Search legendary creatures" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search commanders">
@@ -223,7 +287,11 @@ footer a{color:inherit}
     ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned'),
     cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
     cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
-    picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList')
+    picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
+    deckBtn:$('deckBtn'), deckCount:$('deckCount'), deckSheet:$('deckSheet'), deckSel:$('deckSel'), deckNew:$('deckNew'), deckClose:$('deckClose'),
+    deckName:$('deckName'), deckCmdrName:$('deckCmdrName'), deckCmdrCI:$('deckCmdrCI'), deckCmdrBtn:$('deckCmdrBtn'),
+    deckSumText:$('deckSumText'), deckFill:$('deckFill'), deckIssues:$('deckIssues'), curve:$('curve'), deckList:$('deckList'),
+    ioText:$('ioText'), ioCopy:$('ioCopy'), ioShare:$('ioShare'), ioImport:$('ioImport'), deckDel:$('deckDel'), ioMsg:$('ioMsg'), toast:$('toast')
   };
 
   let cards = [];     // prepared records
@@ -232,6 +300,8 @@ footer a{color:inherit}
   let meta = null;    // {syncedAt, count}
   const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false, cmdr:'' };
   let cmdrCard = null; // the chosen commander's record, or null
+  let decks = [], activeId = '';       // saved decks: {id, name, cmdr, cards:{oracleId:qty}}
+  let idx = new Map(), nameIdx = new Map(); // oracle id -> card, normalized name -> card
 
   /* ---------- helpers ---------- */
   const norm = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -351,12 +421,16 @@ footer a{color:inherit}
 
   /* ---------- search ---------- */
   function prepare(arr) {
+    idx = new Map(); nameIdx = new Map();
     return arr.map((c, x) => {
       c.x = x; c.b = bitsOf(c.ci); c.nm = norm(c.n);
       c.h = c.nm + '\n' + norm(c.t) + '\n' + norm(c.o) + '\n' + norm(c.k);
       c.ty = norm(c.t);
       if (UNBANNED.has(c.nm)) { c.ex = c.l !== 'legal'; c.l = 'legal'; }
       c.cm = (c.ty.includes('legendary') && c.ty.includes('creature')) || /can be your commander/i.test(c.o);
+      c.un = /\bbasic\b.*\bland\b/.test(c.ty) || /any number of cards named/i.test(c.o); // not limited to one copy
+      idx.set(c.i, c); nameIdx.set(c.nm, c);
+      c.nm.split(' // ').forEach(part => { if (!nameIdx.has(part)) nameIdx.set(part, c); });
       return c;
     });
   }
@@ -399,11 +473,11 @@ footer a{color:inherit}
   function cardHtml(c) {
     const flag = c.l === 'legal' ? '' : '<span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
     const img = c.im ? '<img class="thumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '">' : '<span class="thumb none"></span>';
-    return '<li class="card" data-x="' + c.x + '"><button class="row" type="button" aria-expanded="false">' + img +
+    return '<li class="card" data-x="' + c.x + '"><div class="rowwrap"><button class="row" type="button" aria-expanded="false">' + img +
       '<span class="body"><span class="l1"><span class="name">' + esc(c.n) + '</span><span class="cost">' + syms(c.mc) + '</span></span>' +
       '<span class="type">' + esc(c.t) + '</span>' +
       (c.o ? '<span class="text">' + syms(c.o) + '</span>' : '') +
-      '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(c.s.toUpperCase()) + ' ' + esc(c.y) + '</span>' + flag + '</span></span></button></li>';
+      '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(c.s.toUpperCase()) + ' ' + esc(c.y) + '</span>' + flag + '</span></span></button>' + addBtn(c) + '</div></li>';
   }
   function detailHtml(c) {
     return '<div class="detail">' + (c.im ? '<img class="big" alt="' + esc(c.n) + '" src="' + IMG_BASE + 'normal/' + esc(c.im) + '">' : '') +
@@ -469,8 +543,197 @@ footer a{color:inherit}
     el.picker.hidden = false; el.pickQ.value = ''; renderPick();
     document.body.style.overflow = 'hidden'; el.pickQ.focus();
   }
-  function closePicker() { el.picker.hidden = true; document.body.style.overflow = ''; }
-  function setCmdr(id) { st.cmdr = id; findCmdr(); renderCmdr(); applyFilters(); }
+  function closePicker() { el.picker.hidden = true; document.body.style.overflow = el.deckSheet.hidden ? '' : 'hidden'; }
+  function setCmdr(id) {
+    st.cmdr = id; findCmdr();
+    const d = active(); d.cmdr = st.cmdr;
+    if (cmdrCard) delete d.cards[cmdrCard.i];
+    renderCmdr(); afterDeckChange(); applyFilters();
+  }
+
+  /* ---------- decks ---------- */
+  const GROUPS = ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Other'];
+  const GROUP_LABEL = { Creature:'Creatures', Planeswalker:'Planeswalkers', Instant:'Instants', Sorcery:'Sorceries', Artifact:'Artifacts', Enchantment:'Enchantments', Land:'Lands', Other:'Other' };
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function ensureDeck() {
+    if (!decks.length) { decks.push({ id: uid(), name: 'Deck 1', cmdr: st.cmdr || '', cards: {} }); activeId = decks[0].id; }
+  }
+  function active() {
+    ensureDeck();
+    let d = decks.find(x => x.id === activeId);
+    if (!d) { d = decks[0]; activeId = d.id; }
+    return d;
+  }
+  let saveT;
+  function saveDecks() {
+    clearTimeout(saveT);
+    saveT = setTimeout(() => { kvPut([['decks', { decks, activeId }]]).catch(() => {}); }, 250);
+  }
+  async function loadDecks() {
+    try {
+      const d = await kvGet('decks');
+      if (d && Array.isArray(d.decks) && d.decks.length) { decks = d.decks; activeId = d.activeId; st.cmdr = active().cmdr || ''; }
+    } catch (e) { /* storage unavailable: decks live in memory only */ }
+    ensureDeck(); renderBadge();
+  }
+  function qtyOf(oid) { return active().cards[oid] || 0; }
+  function deckTotal() {
+    const d = active(); let n = cmdrCard ? 1 : 0;
+    for (const k in d.cards) if (!idx.size || idx.has(k)) n += d.cards[k];
+    return n;
+  }
+  function renderBadge() { el.deckCount.textContent = deckTotal(); }
+  function addLabel(c, q) { return (q ? (c.un ? 'Add another ' : 'Remove ') : 'Add ') + c.n + (q ? ' (in deck: ' + q + ')' : ' to deck'); }
+  function addBtn(c) {
+    const q = qtyOf(c.i);
+    return '<button class="add' + (q ? ' on' : '') + '" type="button" aria-label="' + esc(addLabel(c, q)) + '">' + (q ? (c.un ? q : '✓') : '+') + '</button>';
+  }
+  function refreshAdds() {
+    el.results.querySelectorAll('.card').forEach(li => {
+      const c = cards[+li.dataset.x], b = li.querySelector('.add');
+      if (!c || !b) return;
+      const q = qtyOf(c.i);
+      b.classList.toggle('on', q > 0); b.textContent = q ? (c.un ? q : '✓') : '+'; b.setAttribute('aria-label', addLabel(c, q));
+    });
+  }
+  let toastT;
+  function toast(msg) {
+    el.toast.textContent = msg; el.toast.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => el.toast.classList.remove('show'), 1800);
+  }
+  function afterDeckChange() { renderBadge(); refreshAdds(); if (!el.deckSheet.hidden) renderDeck(); saveDecks(); }
+  function toggleCard(c) {
+    const d = active(), q = d.cards[c.i] || 0;
+    if (cmdrCard && c === cmdrCard) return toast('That is your commander');
+    if (cmdrCard && (c.b & ~cmdrCard.b)) return toast('Outside your commander’s colors');
+    let msg;
+    if (c.un) { d.cards[c.i] = q + 1; msg = 'Added ' + c.n + ' (' + (q + 1) + ')'; }
+    else if (q) { delete d.cards[c.i]; msg = 'Removed ' + c.n; }
+    else { d.cards[c.i] = 1; msg = 'Added ' + c.n; }
+    afterDeckChange(); toast(msg + ' · ' + deckTotal() + '/100');
+  }
+  function setQty(oid, q) {
+    const d = active();
+    if (q <= 0) delete d.cards[oid]; else d.cards[oid] = q;
+    afterDeckChange();
+  }
+  function groupOf(c) {
+    const t = c.ty.split(' // ')[0];
+    if (t.includes('land')) return 'Land';
+    for (const g of ['creature', 'planeswalker', 'instant', 'sorcery', 'artifact', 'enchantment']) if (t.includes(g)) return g[0].toUpperCase() + g.slice(1);
+    return 'Other';
+  }
+  function deckIssues() {
+    const d = active(), out = [], total = deckTotal();
+    if (!cmdrCard) out.push('No commander set.');
+    if (total < 100) out.push((100 - total) + ' more card' + (100 - total === 1 ? '' : 's') + ' needed to reach 100.');
+    else if (total > 100) out.push((total - 100) + ' over the 100-card limit.');
+    const off = [], bad = [], dup = []; let gone = 0;
+    for (const k in d.cards) {
+      const c = idx.get(k);
+      if (!c) { if (idx.size) gone++; continue; }
+      if (cmdrCard && (c.b & ~cmdrCard.b)) off.push(c.n);
+      if (c.l !== 'legal') bad.push(c.n);
+      if (!c.un && d.cards[k] > 1) dup.push(c.n);
+    }
+    if (off.length) out.push('Outside commander colors: ' + off.join(', '));
+    if (bad.length) out.push('Banned or not legal in Commander: ' + bad.join(', '));
+    if (dup.length) out.push('More than one copy: ' + dup.join(', '));
+    if (gone) out.push(gone + ' saved card' + (gone === 1 ? ' is' : 's are') + ' no longer in the card list.');
+    return out;
+  }
+  function deckRow(e) {
+    const c = e.c, i = esc(c.i), n = esc(c.n);
+    const ctl = c.un
+      ? '<button class="qb" type="button" data-act="dec" data-i="' + i + '" aria-label="Remove one ' + n + '">−</button><span class="qn">' + e.q + '</span><button class="qb" type="button" data-act="inc" data-i="' + i + '" aria-label="Add one ' + n + '">+</button>'
+      : '<button class="qb" type="button" data-act="rm" data-i="' + i + '" aria-label="Remove ' + n + '">✕</button>';
+    const warn = c.l === 'legal' ? '' : ' <span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
+    return '<li class="drow"><span class="dn">' + n + warn + '</span><span class="cost">' + syms(c.mc) + '</span><span class="qc">' + ctl + '</span></li>';
+  }
+  function renderDeck() {
+    const d = active(), total = deckTotal();
+    el.deckSel.innerHTML = decks.map(x => '<option value="' + esc(x.id) + '"' + (x.id === d.id ? ' selected' : '') + '>' + esc(x.name || 'Untitled') + '</option>').join('');
+    if (document.activeElement !== el.deckName) el.deckName.value = d.name;
+    el.deckCmdrName.textContent = cmdrCard ? cmdrCard.n : 'No commander yet';
+    el.deckCmdrCI.innerHTML = cmdrCard ? ciPills(cmdrCard.ci) : '';
+    el.deckCmdrBtn.textContent = cmdrCard ? 'Change' : 'Set commander';
+    el.deckSumText.textContent = total + ' / 100';
+    el.deckFill.style.width = Math.min(100, total) + '%';
+    const issues = deckIssues();
+    el.deckIssues.innerHTML = issues.length
+      ? '<ul>' + issues.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>'
+      : '<p class="ok">100 cards, all legal and within your commander’s colors.</p>';
+    const entries = [];
+    for (const k in d.cards) { const c = idx.get(k); if (c) entries.push({ c, q: d.cards[k] }); }
+    const buckets = new Array(8).fill(0);
+    for (const e of entries) if (groupOf(e.c) !== 'Land') buckets[Math.min(7, Math.floor(e.c.cmc))] += e.q;
+    const mx = Math.max(1, ...buckets);
+    el.curve.innerHTML = buckets.map((n, i) =>
+      '<span class="cb"><span>' + (n || '') + '</span><span class="cbar" style="height:' + (n ? Math.max(6, Math.round(n / mx * 100)) : 0) + '%"></span><span>' + (i === 7 ? '7+' : i) + '</span></span>').join('');
+    const by = {};
+    for (const e of entries) { const g = groupOf(e.c); (by[g] = by[g] || []).push(e); }
+    let html = '';
+    for (const g of GROUPS) {
+      const list = by[g]; if (!list) continue;
+      list.sort((a, b) => a.c.cmc - b.c.cmc || (a.c.nm < b.c.nm ? -1 : 1));
+      html += '<h3 class="gh">' + GROUP_LABEL[g] + '<span>' + list.reduce((s, e) => s + e.q, 0) + '</span></h3><ul class="dl">' + list.map(deckRow).join('') + '</ul>';
+    }
+    el.deckList.innerHTML = html || '<p class="empty">No cards yet. Tap + on a search result to add it.</p>';
+  }
+  function openDeck() { el.deckSheet.hidden = false; document.body.style.overflow = 'hidden'; el.ioMsg.textContent = ''; renderDeck(); }
+  function closeDeck() { el.deckSheet.hidden = true; document.body.style.overflow = ''; }
+  function switchDeck(id) {
+    if (!decks.some(d => d.id === id)) return;
+    activeId = id; st.cmdr = active().cmdr || ''; findCmdr(); renderCmdr(); renderBadge(); applyFilters();
+    if (!el.deckSheet.hidden) renderDeck();
+    saveDecks();
+  }
+  function newDeck() {
+    const d = { id: uid(), name: 'Deck ' + (decks.length + 1), cmdr: '', cards: {} };
+    decks.push(d); switchDeck(d.id);
+  }
+  let delArm = 0;
+  function deleteDeck() {
+    if (!delArm) {
+      delArm = 1; el.deckDel.textContent = 'Tap again to delete';
+      setTimeout(() => { delArm = 0; el.deckDel.textContent = 'Delete deck'; }, 3000);
+      return;
+    }
+    delArm = 0; el.deckDel.textContent = 'Delete deck';
+    const i = decks.findIndex(d => d.id === activeId);
+    decks.splice(i, 1); st.cmdr = ''; ensureDeck();
+    switchDeck(decks[Math.max(0, i - 1)].id);
+  }
+  function exportText() {
+    const d = active(), items = [];
+    for (const k in d.cards) { const c = idx.get(k); if (c) items.push([c.n, d.cards[k]]); }
+    items.sort((a, b) => (a[0].toLowerCase() < b[0].toLowerCase() ? -1 : 1));
+    const lines = cmdrCard ? ['1 ' + cmdrCard.n] : [];
+    for (const [n, q] of items) lines.push(q + ' ' + n);
+    return lines.join('\n');
+  }
+  function importText(text) {
+    const d = active(); let added = 0, side = 0, newCmdr = ''; const miss = [];
+    let section = 'main';
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || /^(\/\/|#)/.test(line)) continue;
+      const h = line.match(/^(sideboard|maybeboard|commander|companion|deck|mainboard)s?:?$/i);
+      if (h) { section = h[1].toLowerCase(); continue; }
+      const m = line.match(/^(\d+)\s*x?\s+(.+)$/i);
+      const q = m ? parseInt(m[1], 10) : 1;
+      const name = (m ? m[2] : line).replace(/\s+\([A-Za-z0-9]{2,6}\)(\s+\S+)?\s*(\*[A-Za-z]+\*)?\s*$/, '').trim();
+      if (section === 'sideboard' || section === 'maybeboard' || section === 'companion') { side += q; continue; }
+      const c = nameIdx.get(norm(name));
+      if (!c) { miss.push(name); continue; }
+      if (cmdrCard && c === cmdrCard) continue;
+      if (section === 'commander' && !cmdrCard && !newCmdr && c.cm) { newCmdr = c.i; continue; }
+      if (c.un) { d.cards[c.i] = (d.cards[c.i] || 0) + q; added += q; } else { d.cards[c.i] = 1; added += 1; }
+    }
+    if (newCmdr) setCmdr(newCmdr);
+    afterDeckChange();
+    return { added, miss, side };
+  }
 
   /* ---------- wiring ---------- */
   function init() {
@@ -498,8 +761,10 @@ footer a{color:inherit}
     });
     el.more.addEventListener('click', () => renderList(false));
     el.results.addEventListener('click', e => {
+      const ab = e.target.closest('.add');
+      if (ab) { toggleCard(cards[+ab.closest('.card').dataset.x]); return; }
       const row = e.target.closest('.row'); if (!row) return;
-      const li = row.parentElement; const open = row.getAttribute('aria-expanded') === 'true';
+      const li = row.closest('.card'); const open = row.getAttribute('aria-expanded') === 'true';
       const existing = li.querySelector('.detail');
       if (open) { existing.hidden = true; row.setAttribute('aria-expanded', 'false'); return; }
       if (!existing) li.insertAdjacentHTML('beforeend', detailHtml(cards[+li.dataset.x])); else existing.hidden = false;
@@ -514,12 +779,48 @@ footer a{color:inherit}
     el.pickClose.addEventListener('click', closePicker);
     let pt; el.pickQ.addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(renderPick, 100); });
     el.pickList.addEventListener('click', e => { const b = e.target.closest('.pick'); if (!b) return; closePicker(); setCmdr(b.dataset.i); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !el.picker.hidden) closePicker(); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
+    });
+    el.deckBtn.addEventListener('click', openDeck);
+    el.deckClose.addEventListener('click', closeDeck);
+    el.deckSel.addEventListener('change', () => switchDeck(el.deckSel.value));
+    el.deckNew.addEventListener('click', newDeck);
+    el.deckDel.addEventListener('click', deleteDeck);
+    el.deckCmdrBtn.addEventListener('click', openPicker);
+    el.deckName.addEventListener('input', () => {
+      active().name = el.deckName.value;
+      const o = el.deckSel.querySelector('option:checked'); if (o) o.textContent = el.deckName.value || 'Untitled';
+      saveDecks();
+    });
+    el.deckList.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]'); if (!b) return;
+      const id = b.dataset.i, q = qtyOf(id);
+      setQty(id, b.dataset.act === 'inc' ? q + 1 : b.dataset.act === 'dec' ? q - 1 : 0);
+    });
+    el.ioCopy.addEventListener('click', async () => {
+      const t = exportText(); el.ioText.value = t;
+      try { await navigator.clipboard.writeText(t); el.ioMsg.textContent = 'Copied ' + deckTotal() + ' cards.'; }
+      catch (e) { el.ioText.select(); el.ioMsg.textContent = 'Select all in the box above and copy it.'; }
+    });
+    if (navigator.share) {
+      el.ioShare.hidden = false;
+      el.ioShare.addEventListener('click', () => { navigator.share({ title: active().name, text: exportText() }).catch(() => {}); });
+    }
+    el.ioImport.addEventListener('click', () => {
+      if (!cards.length) { el.ioMsg.textContent = 'Download the card list first (Data button).'; return; }
+      const r = importText(el.ioText.value);
+      el.ioMsg.textContent = 'Added ' + r.added + ' card' + (r.added === 1 ? '' : 's') + '.' +
+        (r.side ? ' Skipped ' + r.side + ' sideboard card' + (r.side === 1 ? '' : 's') + '.' : '') +
+        (r.miss.length ? ' Not in this format: ' + r.miss.join('; ') : '');
+    });
 
     boot();
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   async function boot() {
+    await loadDecks();
     try {
       const [arr, m] = await Promise.all([kvGet('cards'), kvGet('meta')]);
       if (arr && arr.length && m) {

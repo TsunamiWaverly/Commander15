@@ -26,3 +26,14 @@ Files will not work, because phones block storage and service workers on file://
 - Data > Update cards refreshes the list.
 
 Card data and images: Scryfall. Unofficial; not affiliated with Wizards of the Coast.
+
+## Deck builder
+- Tap **+** on any search result to add it to your deck. Tap again to remove it. Basic lands and
+  "any number of cards" cards (like Relentless Rats) stack instead.
+- The **Deck** button (top right) shows the card count. Inside you can keep several decks, rename them,
+  set the commander, and see a mana curve, cards grouped by type, and warnings for off-color,
+  banned, duplicate or missing cards. The count includes the commander and targets 100.
+- Import: paste a list (one card per line, like `1 Sol Ring`). Cards not printed before M15 are listed as
+  "Not in this format". Sideboard sections are skipped, and a `Commander` section sets the commander.
+- Export: Copy deck list (or Share on iPhone).
+- Decks are saved on the device.
