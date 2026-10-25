@@ -58,3 +58,15 @@ Tap any card image or name to open it full screen with the large picture and its
 the commander at the top (the picture is larger now and shows the first lines of its rules text), on result
 thumbnails and the picture inside an expanded result, on commanders in the picker, on EDHREC suggestions, and on
 the names in your deck list. Close it with the Close button (or Escape on a keyboard).
+
+## Silver border and not-legal filters
+
+Downloads now include silver-border and Un-set cards printed before M15 (Scryfall hides these from ordinary searches, so the app runs a second search for them). After updating the app, tap **Update cards** once to fetch them. In Filters, "Show only cards that are not legal" has one chip per reason (Silver border, Un-set / funny, Conspiracy, Ante, Banned, Other not legal), with counts. Pick several to see any of them. While a chip is on, "Hide cards ... not legal" is ignored.
+
+## Continuous lists
+
+Search results, the commander picker and EDHREC ideas all load as you scroll; there is no Show more button.
+
+## Tribal theme
+
+A commander counts as Tribal only if its text names a creature type (for example "Goblins you control", "each Elf") or says "creature type" or "chosen type". Generic anthems such as Elesh Norn's "Other creatures you control get +2/+2" no longer count.

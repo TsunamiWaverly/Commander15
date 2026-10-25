@@ -102,7 +102,8 @@ main{padding-top:12px}
 .full{white-space:pre-line;font-size:.95rem;max-width:62ch}
 .facts{color:var(--muted);font-size:.85rem}
 .detail a{color:var(--accent);font-weight:600}
-#more{display:block;margin:14px auto 0}
+#more,#pickMore{height:1px;margin:0}
+.catnote{font-size:.8rem;color:var(--muted);margin:6px 0 0}
 .empty{text-align:center;color:var(--muted);padding:32px 0}
 .sym{display:inline-grid;place-items:center;min-width:1.2em;height:1.2em;padding:0 .15em;border-radius:99px;font:700 .72em/1 var(--sans);
   margin-right:2px;vertical-align:-.22em;background:#cfd3d8;color:#1a1a1a;border:1px solid rgba(0,0,0,.28)}
@@ -243,6 +244,10 @@ footer a{color:inherit}
           <option value="oldest">Oldest first</option>
         </select></div>
     </div>
+    <div class="field"><span class="lab">Show only cards that are not legal</span>
+      <div class="chips" id="catChips" style="margin-top:0"></div>
+      <p class="catnote" id="catNote" hidden>Silver border and other categories need a fresh download: tap Update cards.</p>
+    </div>
     <label class="check" for="hideBanned"><input id="hideBanned" type="checkbox"> Hide cards Scryfall lists as banned or not legal in Commander</label>
   </div>
 </header>
@@ -262,7 +267,7 @@ footer a{color:inherit}
   <div id="summary" hidden><span id="count"></span><button id="clear" type="button" hidden>Clear filters</button></div>
   <ol id="results"></ol>
   <div id="empty" class="empty" hidden>No cards match. Try fewer words or clear a filter.</div>
-  <button id="more" class="btn alt" type="button" hidden>Show more</button>
+  <div id="more" aria-hidden="true" hidden></div>
   <footer>Card data and images from <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>. Magic: The Gathering is a trademark of Wizards of the Coast. This app is unofficial.</footer>
 </main>
 
@@ -337,6 +342,7 @@ footer a{color:inherit}
     <div><button id="pickReset" class="ghost" type="button">Reset refinements</button></div>
   </div>
   <ul id="pickList"></ul>
+  <div id="pickMore" aria-hidden="true" hidden></div>
 </div>
 
 <div id="sugg" class="sheet" role="dialog" aria-modal="true" aria-label="Suggestions from EDHREC" hidden>
@@ -355,7 +361,6 @@ footer a{color:inherit}
       <select id="sgSort"><option value="syn">Synergy</option><option value="pop">Popularity</option></select></div>
     <div id="sgMsg" class="status" aria-live="polite"></div>
     <ul id="sgList" class="sg-list"></ul>
-    <button id="sgMore" class="btn alt" type="button" hidden>Show more</button>
     <div class="credit">Suggestions come from <a href="https://edhrec.com" target="_blank" rel="noopener">EDHREC</a>, limited to cards printed before M15, and are kept on this device for a week.</div>
   </div>
 </div>
@@ -379,7 +384,30 @@ footer a{color:inherit}
   const API = 'https://api.scryfall.com';
   const QUERY = 'date<m15 game:paper';
   const IMG_BASE = 'https://cards.scryfall.io/';
+  // Second query pulls in silver-border and Un-set cards, which Scryfall hides from ordinary searches.
+  const QUERY_EXTRA = 'date<m15 game:paper (border:silver or is:funny)';
   const PAGE = 40;
+  // Why a card is not legal as a commander, first match wins. Chips in the filter panel use these.
+  const CAT_LABEL = { silver:'Silver border', funny:'Un-set / funny', conspiracy:'Conspiracy', ante:'Ante', banned:'Banned', other:'Other not legal' };
+  function catOf(c) {
+    if (c.l === 'legal') return '';
+    if (c.bd === 'silver') return 'silver';
+    if (c.ss === 'funny') return 'funny';
+    if (c.ty.includes('conspiracy')) return 'conspiracy';
+    if (/\bante\b/.test(norm(c.o))) return 'ante';
+    return c.l === 'banned' ? 'banned' : 'other';
+  }
+  const legLabel = c => (c.cat ? CAT_LABEL[c.cat] : String(c.l).replace('_', ' '));
+  // Loads the next chunk when the sentinel scrolls near the screen. Without IntersectionObserver, loads everything.
+  function watch(node, load) {
+    if (typeof IntersectionObserver === 'undefined') {
+      let busy = false;
+      return { kick() { if (busy) return; busy = true; let n = 0; while (!node.hidden && n++ < 2000) load(); busy = false; } };
+    }
+    const io = new IntersectionObserver(es => { if (!node.hidden && es.some(e => e.isIntersecting)) load(); }, { rootMargin: '1500px 0px' });
+    io.observe(node);
+    return { kick() { io.unobserve(node); io.observe(node); } };
+  }
   const TYPES = ['Creature','Instant','Sorcery','Artifact','Enchantment','Land','Planeswalker','Legendary'];
   const BIT = {W:1,U:2,B:4,R:8,G:16};
   // Cards this format allows even though Scryfall lists them as banned in Commander. Add exact card names here.
@@ -389,14 +417,14 @@ footer a{color:inherit}
     q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
     syncPanel:$('syncPanel'), syncTitle:$('syncTitle'), syncText:$('syncText'), syncBtn:$('syncBtn'), progress:$('progress'),
     fill:$('fill'), status:$('status'), err:$('err'), dataBtn:$('dataBtn'), filtersBtn:$('filtersBtn'), filters:$('filters'),
-    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned'),
+    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned'), catChips:$('catChips'), catNote:$('catNote'), pickMore:$('pickMore'),
     cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
     cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
     picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
     refineBtn:$('refineBtn'), refine:$('refine'), pickCI:$('pickCI'), pickMode:$('pickMode'), pickThemes:$('pickThemes'), pickMv:$('pickMv'), pickSort:$('pickSort'), pickReset:$('pickReset'),
     cmdrIdeas:$('cmdrIdeas'), deckIdeas:$('deckIdeas'), sugg:$('sugg'), sgTitle:$('sgTitle'), sgClose:$('sgClose'), sgCI:$('sgCI'), sgUse:$('sgUse'), sgLink:$('sgLink'),
     vwName:$('vwName'), vwClose:$('vwClose'), vwImg:$('vwImg'), vwText:$('vwText'), vwFacts:$('vwFacts'), vwLink:$('vwLink'), viewer:$('viewer'), cmdrView:$('cmdrView'), cmdrText:$('cmdrText'),
-    sgTags:$('sgTags'), sgSort:$('sgSort'), sgMsg:$('sgMsg'), sgList:$('sgList'), sgMore:$('sgMore'),
+    sgTags:$('sgTags'), sgSort:$('sgSort'), sgMsg:$('sgMsg'), sgList:$('sgList'),
     deckBtn:$('deckBtn'), deckCount:$('deckCount'), deckSheet:$('deckSheet'), deckSel:$('deckSel'), deckNew:$('deckNew'), deckClose:$('deckClose'),
     deckName:$('deckName'), deckCmdrName:$('deckCmdrName'), deckCmdrCI:$('deckCmdrCI'), deckCmdrBtn:$('deckCmdrBtn'),
     deckSumText:$('deckSumText'), deckFill:$('deckFill'), deckIssues:$('deckIssues'), curve:$('curve'), deckList:$('deckList'),
@@ -407,7 +435,8 @@ footer a{color:inherit}
   let view = [];      // filtered + sorted
   let shown = 0;
   let meta = null;    // {syncedAt, count}
-  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false, cmdr:'' };
+  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false, cats:new Set(), cmdr:'' };
+  let catCounts = {};
   let cmdrCard = null; // the chosen commander's record, or null
   let decks = [], activeId = '';       // saved decks: {id, name, cmdr, cards:{oracleId:qty}}
   let idx = new Map(), nameIdx = new Map(); // oracle id -> card, normalized name -> card
@@ -467,7 +496,7 @@ footer a{color:inherit}
       t: join('type_line', ' // '), o: join('oracle_text', '\n———\n'),
       pt: pw != null ? pw + '/' + tg : (ly != null ? 'Loyalty ' + ly : ''),
       ci: 'WUBRG'.split('').filter(x => (c.color_identity || []).includes(x)).join(''),
-      l: (c.legalities && c.legalities.commander) || 'not_legal', s: c.set, y: (c.released_at || '').slice(0, 4),
+      l: (c.legalities && c.legalities.commander) || 'not_legal', bd: c.border_color || '', ss: c.set_type || '', s: c.set, y: (c.released_at || '').slice(0, 4),
       im: (imgs.normal || '').replace(IMG_BASE + 'normal/', ''), u: c.scryfall_uri || '',
       r: c.edhrec_rank == null ? null : c.edhrec_rank, k: (c.keywords || []).join(' ')
     };
@@ -517,19 +546,24 @@ footer a{color:inherit}
     syncing = true;
     el.err.hidden = true; el.syncBtn.disabled = true; el.progress.hidden = false;
     try {
-      if (!partial) partial = { out: [], total: null, url: API + '/cards/search?q=' + encodeURIComponent(QUERY) + '&unique=cards&order=name&prefer=oldest' };
+      // Two searches (the main pool, then silver-border/Un-set cards), taken in turn so both totals are known early.
+      const first = q => API + '/cards/search?q=' + encodeURIComponent(q) + '&unique=cards&order=name&prefer=oldest';
+      if (!partial) partial = { out: [], total: 0, todo: [QUERY, QUERY_EXTRA].map(q => ({ u: first(q), first: true })) };
       const p = partial;
       if (!p.out.length) el.fill.style.width = '0%';
       el.status.textContent = p.out.length ? 'Resuming…' : 'Contacting Scryfall…';
-      while (p.url) {
-        const res = await fetchJson(p.url);
-        if (p.total == null) p.total = res.total_cards;
+      while (p.todo.length) {
+        const job = p.todo[0];
+        const res = await fetchJson(job.u);
+        if (job.first) p.total += res.total_cards;
         for (const c of res.data) p.out.push(slim(c));
-        el.fill.style.width = Math.min(100, Math.round(p.out.length / p.total * 100)) + '%';
+        p.todo.shift();
+        if (res.has_more) p.todo.push({ u: res.next_page, first: false });
+        el.fill.style.width = Math.min(100, Math.round(p.out.length / (p.total || 1) * 100)) + '%';
         el.status.textContent = 'Downloaded ' + fmt(p.out.length) + ' of ' + fmt(p.total) + ' cards';
-        p.url = res.has_more ? res.next_page : null;
       }
-      const out = p.out;
+      const seen = new Set(); // a card can appear in both searches
+      const out = p.out.filter(c => !seen.has(c.i) && seen.add(c.i));
       const m = { syncedAt: Date.now(), count: out.length };
       el.status.textContent = 'Saving…';
       await kvPut([['cards', out], ['meta', m]]);
@@ -556,16 +590,18 @@ footer a{color:inherit}
     el.syncText.textContent = fmt(cards.length) + ' cards, last updated ' + new Date(meta.syncedAt).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) + '. Update it to pick up new errata or legality changes.';
     el.syncBtn.textContent = 'Update cards';
     el.summary.hidden = false;
+    renderCats();
   }
 
   /* ---------- search ---------- */
   function prepare(arr) {
-    idx = new Map(); nameIdx = new Map(); themeCounts = null;
+    idx = new Map(); nameIdx = new Map(); themeCounts = null; catCounts = {}; tribalRe = null;
     return arr.map((c, x) => {
       c.x = x; c.b = bitsOf(c.ci); c.nm = norm(c.n);
       c.h = c.nm + '\n' + norm(c.t) + '\n' + norm(c.o) + '\n' + norm(c.k);
       c.ty = norm(c.t);
       if (UNBANNED.has(c.nm)) { c.ex = c.l !== 'legal'; c.l = 'legal'; }
+      c.cat = catOf(c); if (c.cat) catCounts[c.cat] = (catCounts[c.cat] || 0) + 1;
       c.cm = (c.ty.includes('legendary') && c.ty.includes('creature')) || /can be your commander/i.test(c.o);
       c.un = /\bbasic\b.*\bland\b/.test(c.ty) || /any number of cards named/i.test(c.o); // not limited to one copy
       idx.set(c.i, c); nameIdx.set(c.nm, c);
@@ -591,7 +627,8 @@ footer a{color:inherit}
       if (cm && c === cm) return false;
       if (hasCI && (within ? (c.b & ~mask) : (c.b !== mask))) return false;
       if (mv != null && c.cmc > mv) return false;
-      if (st.hideBanned && c.l !== 'legal') return false;
+      if (st.cats.size) { if (!st.cats.has(c.cat)) return false; }
+      else if (st.hideBanned && c.l !== 'legal') return false;
       if (legendary && !c.ty.includes('legendary')) return false;
       if (types.length && !types.some(t => c.ty.includes(t))) return false;
       for (const t of terms) { if (c.h.includes(t.t) === t.neg) return false; }
@@ -602,7 +639,7 @@ footer a{color:inherit}
       : s === 'edhrec' ? (a, b) => (a.r == null) - (b.r == null) || a.r - b.r || (a.nm < b.nm ? -1 : 1)
       : s === 'oldest' ? (a, b) => (a.y < b.y ? -1 : a.y > b.y ? 1 : (a.nm < b.nm ? -1 : 1))
       : (a, b) => (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
-    const active = terms.length || hasCI || mv != null || types.length || legendary || st.hideBanned;
+    const active = terms.length || hasCI || mv != null || types.length || legendary || st.hideBanned || st.cats.size;
     el.count.textContent = fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
     el.clear.hidden = !(active);
     el.empty.hidden = view.length > 0 || !cards.length;
@@ -610,7 +647,7 @@ footer a{color:inherit}
     saveState();
   }
   function cardHtml(c) {
-    const flag = c.l === 'legal' ? '' : '<span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
+    const flag = c.l === 'legal' ? '' : '<span class="flag">' + esc(legLabel(c)) + '</span>';
     const img = c.im ? '<img class="thumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '">' : '<span class="thumb none"></span>';
     return '<li class="card" data-x="' + c.x + '"><div class="rowwrap"><button class="row" type="button" aria-expanded="false">' + img +
       '<span class="body"><span class="l1"><span class="name">' + esc(c.n) + '</span><span class="cost">' + syms(c.mc) + '</span></span>' +
@@ -621,7 +658,7 @@ footer a{color:inherit}
   function detailHtml(c) {
     return '<div class="detail">' + (c.im ? '<img class="big" alt="' + esc(c.n) + '" src="' + IMG_BASE + 'normal/' + esc(c.im) + '">' : '') +
       '<div class="full">' + syms(c.o || 'No rules text.') + '</div>' +
-      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, (c.ex ? 'Unbanned in this format' : 'Commander: ' + c.l.replace('_', ' '))].filter(Boolean).map(esc).join(' · ') + '</div>' +
+      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).map(esc).join(' · ') + '</div>' +
       (c.u ? '<a href="' + esc(c.u) + '" target="_blank" rel="noopener">View on Scryfall</a>' : '') + '</div>';
   }
   function renderList(reset) {
@@ -630,11 +667,19 @@ footer a{color:inherit}
     el.results.insertAdjacentHTML('beforeend', next.map(cardHtml).join(''));
     shown += next.length;
     el.more.hidden = shown >= view.length;
+    if (!el.more.hidden) moreWatch.kick();
+  }
+  const moreWatch = watch(el.more, () => renderList(false));
+  function renderCats() {
+    const keys = Object.keys(CAT_LABEL).filter(k => catCounts[k]);
+    el.catChips.innerHTML = keys.map(k => '<button class="chip" type="button" data-k="' + k + '" aria-pressed="' + st.cats.has(k) + '">' + esc(CAT_LABEL[k]) + ' <small>' + fmt(catCounts[k]) + '</small></button>').join('');
+    el.catNote.hidden = !cards.length || !!catCounts.silver; // older saved lists lack border data
+    el.hideBanned.disabled = st.cats.size > 0;
   }
 
   /* ---------- state ---------- */
   function saveState() {
-    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned, cmdr:st.cmdr })); } catch (e) {}
+    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned, cats:[...st.cats], cmdr:st.cmdr })); } catch (e) {}
   }
   function loadState() {
     try {
@@ -642,13 +687,15 @@ footer a{color:inherit}
       if (!s) return;
       st.ci = new Set(s.ci || []); st.ciMode = s.ciMode === 'exact' ? 'exact' : 'within';
       st.types = new Set((s.types || []).filter(t => TYPES.includes(t)));
-      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
+      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned; st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
     } catch (e) {}
   }
   function syncControls() {
     el.ciChips.querySelectorAll('[data-c]').forEach(b => b.setAttribute('aria-pressed', st.ci.has(b.dataset.c)));
     el.ciMode.querySelectorAll('[data-m]').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === st.ciMode));
     el.typeChips.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', st.types.has(b.dataset.t)));
+    el.catChips.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', st.cats.has(b.dataset.k)));
+    el.hideBanned.disabled = st.cats.size > 0;
     el.mv.value = st.mv; el.sort.value = st.sort; el.hideBanned.checked = st.hideBanned;
   }
 
@@ -682,7 +729,7 @@ footer a{color:inherit}
       big.src = IMG_BASE + 'large/' + c.im;
     } else el.vwImg.removeAttribute('src');
     el.vwText.innerHTML = '<b>' + esc(c.n) + '</b> ' + syms(c.mc || '') + '\n' + esc(c.t) + (c.pt ? '  ' + esc(c.pt) : '') + '\n\n' + syms(c.o || 'No rules text.');
-    el.vwFacts.textContent = ['Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, (c.ex ? 'Unbanned in this format' : 'Commander: ' + c.l.replace('_', ' '))].join(' · ');
+    el.vwFacts.textContent = ['Mana value ' + c.cmc, 'First printed ' + c.s.toUpperCase() + ' ' + c.y, (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].join(' · ');
     el.vwLink.hidden = !c.u; if (c.u) el.vwLink.href = c.u;
     el.viewer.hidden = false; document.body.style.overflow = 'hidden';
   }
@@ -693,6 +740,36 @@ footer a{color:inherit}
 
   /* ---------- commander picker ---------- */
   // Themes are guessed from each commander's rules text, so they are a starting point, not an official tag.
+  // Tribal = the text names a creature type (or "creature type"/"chosen type"), not just "other creatures you control".
+  // Creature types are learned from the pool's own type lines, so no hand-kept list goes stale.
+  let tribalRe = null;
+  function tribalTest(c, t) {
+    if (!tribalRe) {
+      const subs = new Set();
+      for (const x of cards) {
+        if (!x.ty || !x.ty.includes('creature')) continue;
+        for (const face of x.ty.split(' // ')) {
+          const i = face.indexOf('—'); if (i < 0) continue;
+          for (const s of face.slice(i + 1).trim().split(/\s+/)) if (s.length > 2) subs.add(s);
+        }
+      }
+      const forms = [...subs].sort((a, b) => b.length - a.length).map(s => {
+        const e = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (/[^aeiou]y$/.test(s)) return e.slice(0, -1) + '(?:y|ies)';
+        if (/fe?$/.test(s) && !/ff$/.test(s)) return e.replace(/fe?$/, '') + '(?:fe?|ves)';
+        return e + '(?:s|es)?';
+      });
+      const sub = '(?:' + forms.join('|') + ')';
+      const noTok = '(?!(?:\\s+\\w+){0,2}\\s+(?:creature\\s+)?tokens?\\b)';
+      tribalRe = new RegExp(
+        '\\bcreature types?\\b|\\bchosen type\\b|' +
+        '\\b(?:each|every|other|another|all|target|non-?|number of|one or more|any|an?)\\s+' + sub + '\\b' + noTok + '|' +
+        '\\b' + sub + '\\s+(?:you control|creatures?|cards?|spells?|permanents?)\\b' + noTok);
+    }
+    // the commander's own name often contains its type ("Goblin Chieftain"), so don't count that
+    const own = norm(c.n.split(' // ')[0]);
+    return tribalRe.test(own ? t.split(own).join(' ') : t);
+  }
   const THEMES = [
     ['Tokens', /\btokens?\b/],
     ['+1/+1 counters', /\+1\/\+1 counter|proliferate/],
@@ -707,14 +784,14 @@ footer a{color:inherit}
     ['Mill', /\bmill|from the top of [\w ]* library into [\w ]* graveyard/],
     ['Discard', /discard/],
     ['Copying', /\bcopy\b|\bcopies\b/],
-    ['Tribal', /other [a-z]+s you control get|of the chosen type|chosen creature type/],
+    ['Tribal', (c, t) => tribalTest(c, t)],
     ['Card draw', /draws? (a|two|three|x|\d+) cards?|whenever you draw/],
     ['Combat', /extra combat|haste|whenever [\w ,]* attacks/],
     ['Mana', /add \{|adds? (an additional|one mana)/]
   ];
   const pk = { ci: new Set(), mode: 'exact', themes: new Set(), mv: '', sort: 'name' };
   function themeBits(c) {
-    if (c.tb == null) { const t = norm(c.o); c.tb = THEMES.reduce((b, th, i) => (th[1].test(t) ? b | (1 << i) : b), 0); }
+    if (c.tb == null) { const t = norm(c.o); c.tb = THEMES.reduce((b, th, i) => ((th[1] instanceof RegExp ? th[1].test(t) : th[1](c, t)) ? b | (1 << i) : b), 0); }
     return c.tb;
   }
   function pickMatches() {
@@ -749,17 +826,26 @@ footer a{color:inherit}
     el.refineBtn.textContent = n ? 'Refine · ' + n : 'Refine';
   }
   function renderPick() {
-    const all = pickMatches();
-    const list = all.slice(0, 60);
-    el.pickHint.textContent = fmt(all.length) + ' possible commanders' + (all.length > 60 ? ' (showing 60)' : '');
-    el.pickList.innerHTML = list.map(c =>
+    pkView = pickMatches(); pkShown = 0;
+    el.pickHint.textContent = fmt(pkView.length) + ' possible commanders';
+    el.pickList.innerHTML = '';
+    appendPick();
+    renderRefine();
+  }
+  let pkView = [], pkShown = 0;
+  const pickWatch = watch(el.pickMore, () => appendPick());
+  function appendPick() {
+    const list = pkView.slice(pkShown, pkShown + 60);
+    pkShown += list.length;
+    el.pickMore.hidden = pkShown >= pkView.length;
+    el.pickList.insertAdjacentHTML('beforeend', list.map(c =>
       '<li class="pickrow">' + (c.im ? '<button class="pthumb" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size"><img loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '"></button>' : '') +
       '<button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
       '<span class="type">' + esc(c.t) + '</span></span>' +
-      (c.l === 'legal' ? '' : '<span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>') +
+      (c.l === 'legal' ? '' : '<span class="flag">' + esc(legLabel(c)) + '</span>') +
       '<span class="cost">' + ciPills(c.ci) + '</span></button>' +
-      '<button class="ghost sbtn" type="button" data-s="' + esc(c.i) + '" aria-label="EDHREC suggestions for ' + esc(c.n) + '">Ideas</button></li>').join('');
-    renderRefine();
+      '<button class="ghost sbtn" type="button" data-s="' + esc(c.i) + '" aria-label="EDHREC suggestions for ' + esc(c.n) + '">Ideas</button></li>').join(''));
+    if (!el.pickMore.hidden) pickWatch.kick();
   }
   function openPicker() {
     if (!cards.length) { el.syncPanel.hidden = false; el.dataBtn.setAttribute('aria-expanded', 'true'); return; }
@@ -829,7 +915,7 @@ footer a{color:inherit}
       r.s == null ? '' : '<span class="syn">' + (r.s < 0 ? '−' : '+') + Math.abs(Math.round(r.s * 100)) + '% synergy</span>',
       r.inc == null ? '' : Math.round(r.inc * 100) + '% of decks'
     ].filter(Boolean).join(' · ');
-    const flag = c.l === 'legal' ? '' : ' <span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
+    const flag = c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>';
     const th = c.im ? '<img class="sthumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '">' : '';
     return '<li class="sg-row"><button class="sg-body linkrow" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size">' + th + '<span class="sg-info"><span class="name">' + esc(c.n) + '</span> <span class="cost">' + syms(c.mc) + '</span>' + flag +
       '<span class="type">' + esc(c.t) + '</span><span class="sg-stats">' + stats + '</span></span></button>' + (sg.mode === 'set' ? sgAddHtml(c) : '') + '</li>';
@@ -837,11 +923,9 @@ footer a{color:inherit}
   function renderSugg(more) {
     const { rows, total } = suggRows();
     if (!more) sg.shown = 0;
-    const next = rows.slice(sg.shown, sg.shown + 40);
-    if (!more) el.sgList.innerHTML = '';
-    el.sgList.insertAdjacentHTML('beforeend', next.map(sgRow).join(''));
-    sg.shown += next.length;
-    el.sgMore.hidden = sg.shown >= rows.length;
+    el.sgList.innerHTML = '';
+    el.sgList.insertAdjacentHTML('beforeend', rows.map(sgRow).join('')); // every suggestion, no paging
+    sg.shown = rows.length;
     const th = sg.theme && sg.data ? ' for the ' + (sg.tags.find(t => t.s === sg.theme) || { v: sg.theme }).v + ' theme' : '';
     el.sgMsg.textContent = rows.length
       ? fmt(rows.length) + ' of EDHREC’s ' + fmt(total) + ' suggestions' + th + ' were printed before M15.' + (sg.mode === 'preview' ? ' Use as commander to start adding cards.' : '')
@@ -864,7 +948,7 @@ footer a{color:inherit}
   }
   async function loadSugg(theme) {
     const my = ++sg.req; sg.theme = theme;
-    el.sgMsg.textContent = 'Loading suggestions from EDHREC…'; el.sgList.innerHTML = ''; el.sgMore.hidden = true;
+    el.sgMsg.textContent = 'Loading suggestions from EDHREC…'; el.sgList.innerHTML = '';
     try {
       const d = await edhrecGet(slugOf(sg.c.n), theme);
       if (my !== sg.req) return;
@@ -885,7 +969,7 @@ footer a{color:inherit}
     el.sgTitle.textContent = c.n; el.sgCI.innerHTML = ciPills(c.ci);
     el.sgUse.hidden = mode !== 'preview';
     el.sgLink.href = EDHREC_SITE + slugOf(c.n);
-    el.sgTags.innerHTML = ''; el.sgList.innerHTML = ''; el.sgMore.hidden = true; el.sgSort.value = 'syn';
+    el.sgTags.innerHTML = ''; el.sgList.innerHTML = ''; el.sgSort.value = 'syn';
     el.sugg.hidden = false; document.body.style.overflow = 'hidden';
     await loadSugg('');
   }
@@ -993,7 +1077,7 @@ footer a{color:inherit}
     const ctl = c.un
       ? '<button class="qb" type="button" data-act="dec" data-i="' + i + '" aria-label="Remove one ' + n + '">−</button><span class="qn">' + e.q + '</span><button class="qb" type="button" data-act="inc" data-i="' + i + '" aria-label="Add one ' + n + '">+</button>'
       : '<button class="qb" type="button" data-act="rm" data-i="' + i + '" aria-label="Remove ' + n + '">✕</button>';
-    const warn = c.l === 'legal' ? '' : ' <span class="flag">' + esc(c.l.replace('_', ' ')) + '</span>';
+    const warn = c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>';
     return '<li class="drow"><span class="dn"><button class="linkbtn" type="button" data-v="' + i + '">' + n + '</button>' + warn + '</span><span class="cost">' + syms(c.mc) + '</span><span class="qc">' + ctl + '</span></li>';
   }
   function renderDeck() {
@@ -1103,10 +1187,10 @@ footer a{color:inherit}
     el.sort.addEventListener('change', () => { st.sort = el.sort.value; applyFilters(); });
     el.hideBanned.addEventListener('change', () => { st.hideBanned = el.hideBanned.checked; applyFilters(); });
     el.clear.addEventListener('click', () => {
-      el.q.value = ''; st.ci.clear(); st.types.clear(); st.mv = ''; st.hideBanned = false; st.ciMode = 'within';
+      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.hideBanned = false; st.ciMode = 'within';
       syncControls(); applyFilters();
     });
-    el.more.addEventListener('click', () => renderList(false));
+    el.catChips.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; st.cats.has(k) ? st.cats.delete(k) : st.cats.add(k); syncControls(); applyFilters(); });
     el.results.addEventListener('click', e => {
       const ab = e.target.closest('.add');
       if (ab) { toggleCard(cards[+ab.closest('.card').dataset.x]); return; }
@@ -1156,7 +1240,6 @@ footer a{color:inherit}
     el.sgUse.addEventListener('click', () => { const c = sg && sg.c; closeSugg(); if (c) { closePicker(); setCmdr(c.i); } });
     el.sgTags.addEventListener('click', e => { const b = e.target.closest('[data-tg]'); if (!b || !sg) return; loadSugg(b.dataset.tg); });
     el.sgSort.addEventListener('change', () => { if (!sg) return; sg.sort = el.sgSort.value; renderSugg(false); });
-    el.sgMore.addEventListener('click', () => renderSugg(true));
     el.sgList.addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (b) toggleCard(cards[+b.dataset.sa]); });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
