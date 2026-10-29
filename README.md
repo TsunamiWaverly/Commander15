@@ -61,7 +61,7 @@ the names in your deck list. Close it with the Close button (or Escape on a keyb
 
 ## Silver border and not-legal filters
 
-Downloads now include silver-border and Un-set cards printed before M15 (Scryfall hides these from ordinary searches, so the app runs a second search for them). After updating the app, tap **Update cards** once to fetch them. In Filters, "Show only cards that are not legal" has one chip per reason (Silver border, Un-set / funny, Conspiracy, Ante, Banned, Other not legal), with counts. Pick several to see any of them. While a chip is on, "Hide cards ... not legal" is ignored.
+Downloads now include silver-border and Un-set cards printed before M15 (Scryfall hides these from ordinary searches, so the app runs a second search, `date<m15 border:silver`, for them). After updating the app, tap **Update cards** once to fetch them. In Filters, "Show only cards that are not legal" has one chip per reason (Silver border, Un-set / funny, Conspiracy, Ante, Banned, Other not legal), with counts. Pick several to see any of them. While a chip is on, "Hide cards ... not legal" is ignored.
 
 ## Continuous lists
 
@@ -70,3 +70,5 @@ Search results, the commander picker and EDHREC ideas all load as you scroll; th
 ## Tribal theme
 
 A commander counts as Tribal only if its text names a creature type (for example "Goblins you control", "each Elf") or says "creature type" or "chosen type". Generic anthems such as Elesh Norn's "Other creatures you control get +2/+2" no longer count.
+
+A card counts as Silver border if any of its printings is silver, even when its oldest printing is not (the card shows the oldest printing's image and set).

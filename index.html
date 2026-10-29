@@ -384,14 +384,14 @@ footer a{color:inherit}
   const API = 'https://api.scryfall.com';
   const QUERY = 'date<m15 game:paper';
   const IMG_BASE = 'https://cards.scryfall.io/';
-  // Second query pulls in silver-border and Un-set cards, which Scryfall hides from ordinary searches.
-  const QUERY_EXTRA = 'date<m15 game:paper (border:silver or is:funny)';
+  // Second query pulls in every silver-border card, which Scryfall hides from ordinary searches.
+  const QUERY_EXTRA = 'date<m15 border:silver';
   const PAGE = 40;
   // Why a card is not legal as a commander, first match wins. Chips in the filter panel use these.
   const CAT_LABEL = { silver:'Silver border', funny:'Un-set / funny', conspiracy:'Conspiracy', ante:'Ante', banned:'Banned', other:'Other not legal' };
   function catOf(c) {
     if (c.l === 'legal') return '';
-    if (c.bd === 'silver') return 'silver';
+    if (c.bd === 'silver' || c.sv) return 'silver';
     if (c.ss === 'funny') return 'funny';
     if (c.ty.includes('conspiracy')) return 'conspiracy';
     if (/\bante\b/.test(norm(c.o))) return 'ante';
@@ -484,7 +484,7 @@ footer a{color:inherit}
   }
 
   /* ---------- sync ---------- */
-  function slim(c) {
+  function slim(c, sv) {
     const f = c.card_faces || [];
     const join = (k, sep) => c[k] || f.map(x => x[k]).filter(Boolean).join(sep);
     const imgs = c.image_uris || (f[0] && f[0].image_uris) || {};
@@ -498,7 +498,8 @@ footer a{color:inherit}
       ci: 'WUBRG'.split('').filter(x => (c.color_identity || []).includes(x)).join(''),
       l: (c.legalities && c.legalities.commander) || 'not_legal', bd: c.border_color || '', ss: c.set_type || '', s: c.set, y: (c.released_at || '').slice(0, 4),
       im: (imgs.normal || '').replace(IMG_BASE + 'normal/', ''), u: c.scryfall_uri || '',
-      r: c.edhrec_rank == null ? null : c.edhrec_rank, k: (c.keywords || []).join(' ')
+      r: c.edhrec_rank == null ? null : c.edhrec_rank, k: (c.keywords || []).join(' '),
+      sv: sv === true ? 1 : 0 // came back from the border:silver search, i.e. some printing is silver even if the oldest one is not
     };
   }
   // Scryfall allows 2 /cards/search requests per second and blocks callers for 30 seconds after that.
@@ -548,7 +549,7 @@ footer a{color:inherit}
     try {
       // Two searches (the main pool, then silver-border/Un-set cards), taken in turn so both totals are known early.
       const first = q => API + '/cards/search?q=' + encodeURIComponent(q) + '&unique=cards&order=name&prefer=oldest';
-      if (!partial) partial = { out: [], total: 0, todo: [QUERY, QUERY_EXTRA].map(q => ({ u: first(q), first: true })) };
+      if (!partial) partial = { out: [], total: 0, todo: [QUERY, QUERY_EXTRA].map(q => ({ u: first(q), first: true, sv: q === QUERY_EXTRA })) };
       const p = partial;
       if (!p.out.length) el.fill.style.width = '0%';
       el.status.textContent = p.out.length ? 'Resuming…' : 'Contacting Scryfall…';
@@ -556,14 +557,15 @@ footer a{color:inherit}
         const job = p.todo[0];
         const res = await fetchJson(job.u);
         if (job.first) p.total += res.total_cards;
-        for (const c of res.data) p.out.push(slim(c));
+        for (const c of res.data) p.out.push(slim(c, job.sv));
         p.todo.shift();
-        if (res.has_more) p.todo.push({ u: res.next_page, first: false });
+        if (res.has_more) p.todo.push({ u: res.next_page, first: false, sv: job.sv });
         el.fill.style.width = Math.min(100, Math.round(p.out.length / (p.total || 1) * 100)) + '%';
         el.status.textContent = 'Downloaded ' + fmt(p.out.length) + ' of ' + fmt(p.total) + ' cards';
       }
-      const seen = new Set(); // a card can appear in both searches
-      const out = p.out.filter(c => !seen.has(c.i) && seen.add(c.i));
+      const seen = new Map(); // a card can appear in both searches: keep the first (oldest-printing) record, remember the silver flag
+      const out = [];
+      for (const c of p.out) { const o = seen.get(c.i); if (o) { if (c.sv) o.sv = 1; } else { seen.set(c.i, c); out.push(c); } }
       const m = { syncedAt: Date.now(), count: out.length };
       el.status.textContent = 'Saving…';
       await kvPut([['cards', out], ['meta', m]]);
