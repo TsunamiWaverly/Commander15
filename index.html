@@ -900,13 +900,22 @@ footer a{color:inherit}
   function suggRows() {
     const out = [];
     if (!sg || !sg.data) return { rows: out, total: 0 };
+    let base = null;
+    if (sg.theme && sg.base) { base = new Map(); for (const e of sg.base.cards) base.set(e.n, e.pd ? e.nd / e.pd : 0); }
     for (const e of sg.data.cards) {
       const c = nameIdx.get(norm(e.n));
       if (!c || c === sg.c) continue;
-      out.push({ c, s: e.s, inc: e.pd ? e.nd / e.pd : null });
+      const inc = e.pd ? e.nd / e.pd : null;
+      if (base && inc != null) {
+        // A theme page lists every card its decks play, so keep only cards played MORE often in that theme
+        // than in the commander's decks overall. "lift" is that difference.
+        const lift = inc - (base.get(e.n) || 0);
+        if (lift > 0.005) out.push({ c, s: e.s, inc, lift });
+      } else out.push({ c, s: e.s, inc });
     }
+    const key = r => (r.lift != null ? r.lift : (r.s == null ? -9 : r.s));
     if (sg.sort === 'pop') out.sort((a, b) => (b.inc || 0) - (a.inc || 0));
-    else out.sort((a, b) => (b.s == null ? -9 : b.s) - (a.s == null ? -9 : a.s));
+    else out.sort((a, b) => key(b) - key(a));
     return { rows: out, total: sg.data.cards.length };
   }
   function sgAddHtml(c) {
@@ -916,8 +925,9 @@ footer a{color:inherit}
   function sgRow(r) {
     const c = r.c;
     const stats = [
-      r.s == null ? '' : '<span class="syn">' + (r.s < 0 ? '−' : '+') + Math.abs(Math.round(r.s * 100)) + '% synergy</span>',
-      r.inc == null ? '' : Math.round(r.inc * 100) + '% of decks'
+      r.lift != null ? '<span class="syn">+' + Math.round(r.lift * 100) + '% vs all decks</span>'
+        : (r.s == null ? '' : '<span class="syn">' + (r.s < 0 ? '−' : '+') + Math.abs(Math.round(r.s * 100)) + '% synergy</span>'),
+      r.inc == null ? '' : Math.round(r.inc * 100) + '% of ' + (r.lift != null ? 'theme ' : '') + 'decks'
     ].filter(Boolean).join(' · ');
     const flag = c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>';
     const th = c.im ? '<img class="sthumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(c.im) + '">' : '';
@@ -930,10 +940,14 @@ footer a{color:inherit}
     el.sgList.innerHTML = '';
     el.sgList.insertAdjacentHTML('beforeend', rows.map(sgRow).join('')); // every suggestion, no paging
     sg.shown = rows.length;
-    const th = sg.theme && sg.data ? ' for the ' + (sg.tags.find(t => t.s === sg.theme) || { v: sg.theme }).v + ' theme' : '';
-    el.sgMsg.textContent = rows.length
-      ? fmt(rows.length) + ' of EDHREC’s ' + fmt(total) + ' suggestions' + th + ' were printed before M15.' + (sg.mode === 'preview' ? ' Use as commander to start adding cards.' : '')
-      : 'None of EDHREC’s ' + fmt(total) + ' suggestions' + th + ' were printed before M15.';
+    const tag = sg.theme && sg.data ? (sg.tags.find(t => t.s === sg.theme) || { v: sg.theme }) : null;
+    const th = tag ? ' for the ' + tag.v + ' theme' : '';
+    const lifted = !!(tag && sg.base);
+    let msg = rows.length
+      ? fmt(rows.length) + ' of EDHREC’s ' + fmt(total) + ' suggestions' + th + (lifted ? ' are played more in these decks than in ' + sg.c.n + ' decks overall, and were printed before M15.' : ' were printed before M15.') + (sg.mode === 'preview' ? ' Use as commander to start adding cards.' : '')
+      : 'None of EDHREC’s ' + fmt(total) + ' suggestions' + th + (lifted ? ' are played more in these decks than overall, among cards printed before M15.' : ' were printed before M15.');
+    if (tag && tag.c != null) msg += ' This theme has ' + fmt(tag.c) + ' deck' + (tag.c === 1 ? '' : 's') + (tag.c < 10 ? ', too few for the percentages to mean much.' : '.');
+    el.sgMsg.textContent = msg;
   }
   function renderSuggTags() {
     const tags = sg.tags || [];
@@ -956,7 +970,9 @@ footer a{color:inherit}
     try {
       const d = await edhrecGet(slugOf(sg.c.n), theme);
       if (my !== sg.req) return;
-      sg.data = d; if (!theme) sg.tags = d.tags;
+      if (!theme) { sg.base = d; sg.tags = d.tags; }
+      else if (!sg.base) { try { sg.base = await edhrecGet(slugOf(sg.c.n), ''); } catch (e) { /* theme view falls back to the raw theme list */ } if (my !== sg.req) return; }
+      sg.data = d;
       renderSuggTags(); renderSugg(false);
     } catch (e) {
       if (my !== sg.req) return;
@@ -969,7 +985,7 @@ footer a{color:inherit}
     }
   }
   async function openSugg(c, mode) {
-    sg = { c, mode, theme: '', data: null, shown: 0, sort: 'syn', tags: [], req: 0 };
+    sg = { c, mode, theme: '', data: null, base: null, shown: 0, sort: 'syn', tags: [], req: 0 };
     el.sgTitle.textContent = c.n; el.sgCI.innerHTML = ciPills(c.ci);
     el.sgUse.hidden = mode !== 'preview';
     el.sgLink.href = EDHREC_SITE + slugOf(c.n);

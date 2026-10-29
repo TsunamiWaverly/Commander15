@@ -72,3 +72,7 @@ Search results, the commander picker and EDHREC ideas all load as you scroll; th
 A commander counts as Tribal only if its text names a creature type (for example "Goblins you control", "each Elf") or says "creature type" or "chosen type". Generic anthems such as Elesh Norn's "Other creatures you control get +2/+2" no longer count.
 
 A card counts as Silver border if any of its printings is silver, even when its oldest printing is not (the card shows the oldest printing's image and set).
+
+## EDHREC themes
+
+Picking a theme in Ideas loads that theme's EDHREC page and keeps only cards played more often in those decks than in the commander's decks overall (shown as "+N% vs all decks"). The message shows how many decks the theme has, and warns when there are fewer than 10.
