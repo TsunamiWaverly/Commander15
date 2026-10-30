@@ -76,3 +76,7 @@ A card counts as Silver border if any of its printings is silver, even when its 
 ## EDHREC themes
 
 Picking a theme in Ideas loads that theme's EDHREC page and keeps only cards played more often in those decks than in the commander's decks overall (shown as "+N% vs all decks"). The message shows how many decks the theme has, and warns when there are fewer than 10.
+
+## Cassie mode
+
+In Filters, tick "Cassie mode" to show only cards that have a printing on or after M15, each shown with its earliest such printing (image, set, year, and the Scryfall link). The first time, it asks you to download those printings (one extra search, a few minutes, kept on the device). The mode is remembered, applies to search, the commander picker and EDHREC ideas, and untick it to go back to the original printings.
