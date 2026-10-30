@@ -80,3 +80,7 @@ Picking a theme in Ideas loads that theme's EDHREC page and keeps only cards pla
 ## Cassie mode
 
 In Filters, tick "Cassie mode" to show only cards that have a 2015-frame printing on or after M15, each shown with its newest 2015-frame printing (image, set, year, and the Scryfall link). The first time, it asks you to download those printings (one extra search, a few minutes, kept on the device). The mode is remembered, applies to search, the commander picker and EDHREC ideas, and untick it to go back to the original printings.
+
+## EDHREC categories in Ideas
+
+Each commander's Ideas sheet has an "EDHREC categories" row built from the lists EDHREC itself publishes for that commander (for example New Cards, Top Cards, High Lift, Creatures, Instants, Sorceries, Utility Artifacts, Enchantments, Planeswalkers, Utility Lands, Mana Artifacts, Lands). Each chip shows how many pre-M15 cards it holds. Categories combine with the theme chips and Cassie mode. Only lists EDHREC actually has for that commander appear.

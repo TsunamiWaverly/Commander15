@@ -365,6 +365,7 @@ footer a{color:inherit}
       <a id="sgLink" href="https://edhrec.com" target="_blank" rel="noopener">Open on EDHREC</a>
     </div>
     <div class="field"><span class="lab">EDHREC themes</span><div id="sgTags" class="chips" style="margin-top:0"></div></div>
+    <div class="field" id="sgCatField" hidden><span class="lab">EDHREC categories</span><div id="sgCats" class="chips" style="margin-top:0"></div></div>
     <div class="field"><label for="sgSort">Sort by</label>
       <select id="sgSort"><option value="syn">Synergy</option><option value="pop">Popularity</option></select></div>
     <div id="sgMsg" class="status" aria-live="polite"></div>
@@ -432,7 +433,7 @@ footer a{color:inherit}
     refineBtn:$('refineBtn'), refine:$('refine'), pickCI:$('pickCI'), pickMode:$('pickMode'), pickThemes:$('pickThemes'), pickMv:$('pickMv'), pickSort:$('pickSort'), pickReset:$('pickReset'),
     cmdrIdeas:$('cmdrIdeas'), deckIdeas:$('deckIdeas'), sugg:$('sugg'), sgTitle:$('sgTitle'), sgClose:$('sgClose'), sgCI:$('sgCI'), sgUse:$('sgUse'), sgLink:$('sgLink'),
     vwName:$('vwName'), vwClose:$('vwClose'), vwImg:$('vwImg'), vwText:$('vwText'), vwFacts:$('vwFacts'), vwLink:$('vwLink'), viewer:$('viewer'), cmdrView:$('cmdrView'), cmdrText:$('cmdrText'),
-    sgTags:$('sgTags'), sgSort:$('sgSort'), sgMsg:$('sgMsg'), sgList:$('sgList'),
+    sgTags:$('sgTags'), sgCats:$('sgCats'), sgCatField:$('sgCatField'), sgSort:$('sgSort'), sgMsg:$('sgMsg'), sgList:$('sgList'),
     deckBtn:$('deckBtn'), deckCount:$('deckCount'), deckSheet:$('deckSheet'), deckSel:$('deckSel'), deckNew:$('deckNew'), deckClose:$('deckClose'),
     deckName:$('deckName'), deckCmdrName:$('deckCmdrName'), deckCmdrCI:$('deckCmdrCI'), deckCmdrBtn:$('deckCmdrBtn'),
     deckSumText:$('deckSumText'), deckFill:$('deckFill'), deckIssues:$('deckIssues'), curve:$('curve'), deckList:$('deckList'),
@@ -931,19 +932,27 @@ footer a{color:inherit}
   const slugOf = name => norm(String(name).split(' // ')[0]).replace(/['’`,.:!?"()]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   function trimEdhrec(j) {
     const lists = (j && j.container && j.container.json_dict && j.container.json_dict.cardlists) || [];
-    const byName = new Map();
-    for (const l of lists) for (const v of (l.cardviews || [])) {
-      if (!v || !v.name) continue;
-      const s = typeof v.synergy === 'number' ? v.synergy : null;
-      const cur = byName.get(v.name);
-      if (!cur || (s != null && (cur.s == null || s > cur.s))) byName.set(v.name, { n: v.name, s, nd: v.num_decks || 0, pd: v.potential_decks || 0 });
+    const byName = new Map(), cats = [];
+    for (const l of lists) {
+      const k = l.tag || l.header; if (!k || !(l.cardviews || []).length) continue;
+      cats.push({ k, h: l.header || k });
+      for (const v of l.cardviews) {
+        if (!v || !v.name) continue;
+        const s = typeof v.synergy === 'number' ? v.synergy : null;
+        const cur = byName.get(v.name);
+        if (!cur) byName.set(v.name, { n: v.name, s, nd: v.num_decks || 0, pd: v.potential_decks || 0, L: [k] });
+        else {
+          if (!cur.L.includes(k)) cur.L.push(k);
+          if (s != null && (cur.s == null || s > cur.s)) { cur.s = s; cur.nd = v.num_decks || 0; cur.pd = v.potential_decks || 0; }
+        }
+      }
     }
     const tags = ((j && (j.tag_counts || (j.panels && j.panels.taglinks))) || []).slice(0, 18).map(t => ({ s: t.slug, v: t.value, c: t.count }));
-    return { cards: [...byName.values()], tags };
+    return { v: 2, cards: [...byName.values()], cats, tags };
   }
   async function edhrecGet(slug, theme) {
     const key = 'edhrec:' + slug + (theme ? '/' + theme : '');
-    try { const hit = await kvGet(key); if (hit && hit.d && Date.now() - hit.t < EDHREC_TTL) return hit.d; } catch (e) { /* no cache */ }
+    try { const hit = await kvGet(key); if (hit && hit.d && hit.d.v === 2 && Date.now() - hit.t < EDHREC_TTL) return hit.d; } catch (e) { /* no cache */ }
     let r;
     try { r = await fetch(EDHREC_API + slug + (theme ? '/' + theme : '') + '.json'); }
     catch (e) { const err = new Error('blocked'); err.kind = 'net'; throw err; }
@@ -956,7 +965,7 @@ footer a{color:inherit}
   }
   function suggRows() {
     const out = [];
-    if (!sg || !sg.data) return { rows: out, total: 0 };
+    if (!sg || !sg.data) return { rows: out, total: 0, counts: {} };
     let base = null;
     if (sg.theme && sg.base) { base = new Map(); for (const e of sg.base.cards) base.set(e.n, e.pd ? e.nd / e.pd : 0); }
     for (const e of sg.data.cards) {
@@ -967,13 +976,16 @@ footer a{color:inherit}
         // A theme page lists every card its decks play, so keep only cards played MORE often in that theme
         // than in the commander's decks overall. "lift" is that difference.
         const lift = inc - (base.get(e.n) || 0);
-        if (lift > 0.005) out.push({ c, s: e.s, inc, lift });
-      } else out.push({ c, s: e.s, inc });
+        if (lift > 0.005) out.push({ c, s: e.s, inc, lift, L: e.L });
+      } else out.push({ c, s: e.s, inc, L: e.L });
     }
+    const counts = {};
+    for (const r of out) for (const k of (r.L || [])) counts[k] = (counts[k] || 0) + 1;
+    if (sg.cat) { for (let i = out.length - 1; i >= 0; i--) if (!(out[i].L || []).includes(sg.cat)) out.splice(i, 1); }
     const key = r => (r.lift != null ? r.lift : (r.s == null ? -9 : r.s));
     if (sg.sort === 'pop') out.sort((a, b) => (b.inc || 0) - (a.inc || 0));
     else out.sort((a, b) => key(b) - key(a));
-    return { rows: out, total: sg.data.cards.length };
+    return { rows: out, total: sg.data.cards.length, counts };
   }
   function sgAddHtml(c) {
     const q = qtyOf(c.i);
@@ -991,8 +1003,17 @@ footer a{color:inherit}
     return '<li class="sg-row"><button class="sg-body linkrow" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size">' + th + '<span class="sg-info"><span class="name">' + esc(c.n) + '</span> <span class="cost">' + syms(c.mc) + '</span>' + flag +
       '<span class="type">' + esc(c.t) + '</span><span class="sg-stats">' + stats + '</span></span></button>' + (sg.mode === 'set' ? sgAddHtml(c) : '') + '</li>';
   }
+  function renderSuggCats(counts) {
+    const cats = ((sg.data && sg.data.cats) || []).filter(c => counts[c.k]);
+    el.sgCatField.hidden = cats.length < 2;
+    el.sgCats.innerHTML = cats.length < 2 ? '' :
+      '<button class="chip" type="button" data-ct="" aria-pressed="' + (!sg.cat) + '">All</button>' +
+      cats.map(c => '<button class="chip" type="button" data-ct="' + esc(c.k) + '" aria-pressed="' + (sg.cat === c.k) + '">' + esc(c.h) + ' <small>' + fmt(counts[c.k]) + '</small></button>').join('');
+  }
   function renderSugg(more) {
-    const { rows, total } = suggRows();
+    const { rows, total, counts } = suggRows();
+    if (sg.cat && !counts[sg.cat]) { sg.cat = ''; return renderSugg(more); } // that category is empty in this view
+    renderSuggCats(counts);
     if (!more) sg.shown = 0;
     el.sgList.innerHTML = '';
     el.sgList.insertAdjacentHTML('beforeend', rows.map(sgRow).join('')); // every suggestion, no paging
@@ -1004,7 +1025,8 @@ footer a{color:inherit}
       ? fmt(rows.length) + ' of EDHREC’s ' + fmt(total) + ' suggestions' + th + (lifted ? ' are played more in these decks than in ' + sg.c.n + ' decks overall, and were printed before M15.' : ' were printed before M15.') + (sg.mode === 'preview' ? ' Use as commander to start adding cards.' : '')
       : 'None of EDHREC’s ' + fmt(total) + ' suggestions' + th + (lifted ? ' are played more in these decks than overall, among cards printed before M15.' : ' were printed before M15.');
     if (tag && tag.c != null) msg += ' This theme has ' + fmt(tag.c) + ' deck' + (tag.c === 1 ? '' : 's') + (tag.c < 10 ? ', too few for the percentages to mean much.' : '.');
-    el.sgMsg.textContent = msg;
+    const cn = sg.cat && ((sg.data.cats || []).find(c => c.k === sg.cat) || {}).h;
+    el.sgMsg.textContent = (cn ? cn + ': ' : '') + msg;
   }
   function renderSuggTags() {
     const tags = sg.tags || [];
@@ -1042,7 +1064,7 @@ footer a{color:inherit}
     }
   }
   async function openSugg(c, mode) {
-    sg = { c, mode, theme: '', data: null, base: null, shown: 0, sort: 'syn', tags: [], req: 0 };
+    sg = { c, mode, theme: '', cat: '', data: null, base: null, shown: 0, sort: 'syn', tags: [], req: 0 };
     el.sgTitle.textContent = c.n; el.sgCI.innerHTML = ciPills(c.ci);
     el.sgUse.hidden = mode !== 'preview';
     el.sgLink.href = EDHREC_SITE + slugOf(c.n);
@@ -1320,6 +1342,7 @@ footer a{color:inherit}
     el.deckIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
     el.sgClose.addEventListener('click', closeSugg);
     el.sgUse.addEventListener('click', () => { const c = sg && sg.c; closeSugg(); if (c) { closePicker(); setCmdr(c.i); } });
+    el.sgCats.addEventListener('click', e => { const b = e.target.closest('[data-ct]'); if (!b || !sg) return; sg.cat = b.dataset.ct; renderSugg(false); });
     el.sgTags.addEventListener('click', e => { const b = e.target.closest('[data-tg]'); if (!b || !sg) return; loadSugg(b.dataset.tg); });
     el.sgSort.addEventListener('change', () => { if (!sg) return; sg.sort = el.sgSort.value; renderSugg(false); });
     el.sgList.addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (b) toggleCard(cards[+b.dataset.sa]); });
