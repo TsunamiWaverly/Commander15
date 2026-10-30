@@ -251,10 +251,10 @@ footer a{color:inherit}
     </div>
     <label class="check" for="hideBanned"><input id="hideBanned" type="checkbox"> Hide cards Scryfall lists as banned or not legal in Commander</label>
     <div id="cassieField" style="display:grid;gap:8px">
-      <label class="check" for="cassie"><input id="cassie" type="checkbox"> Cassie mode: only cards with a printing on or after M15, shown with that printing</label>
+      <label class="check" for="cassie"><input id="cassie" type="checkbox"> Cassie mode: only cards with a 2015-frame printing on or after M15, shown with the newest one</label>
       <div id="cassieBox" hidden>
         <div class="status" id="cassieMsg" aria-live="polite"></div>
-        <button id="cassieBtn" class="btn alt" type="button">Download post-M15 printings</button>
+        <button id="cassieBtn" class="btn alt" type="button">Download 2015-frame printings</button>
       </div>
     </div>
   </div>
@@ -599,21 +599,22 @@ footer a{color:inherit}
     }
   }
   /* ---------- Cassie mode: show each card's first printing on or after M15 ---------- */
-  const MODERN_QUERY = 'date>=m15 game:paper';
+  const MODERN_QUERY = 'date>=m15 frame:2015 game:paper';
+  const MODERN_VER = 2; // 1 = earliest post-M15 printing (old); 2 = newest frame:2015 printing
   let modernBusy = false, modernPartial = null, cassieErr = '';
   function setModern(rows) { modern = new Map(rows.map(r => [r[0], { im: r[1], s: r[2], y: r[3], u: r[4] }])); }
   function renderCassie() {
     const need = st.cassie && !modern.size;
     el.cassieBox.hidden = !(need || modernBusy);
     if (modernBusy) return;
-    el.cassieMsg.textContent = cassieErr || 'Cassie mode needs a one-time download of each card’s first printing on or after M15 (a few minutes, paced to respect Scryfall’s limit). Cards with no such printing are hidden.';
-    el.cassieBtn.textContent = modernPartial && modernPartial.n ? 'Resume download' : 'Download post-M15 printings';
+    el.cassieMsg.textContent = cassieErr || 'Cassie mode needs a one-time download of each card’s newest printing in the 2015 frame (a few minutes, paced to respect Scryfall’s limit). Cards with no 2015-frame printing are hidden.';
+    el.cassieBtn.textContent = modernPartial && modernPartial.n ? 'Resume download' : 'Download 2015-frame printings';
   }
   async function syncModern() {
     if (modernBusy) return;
     modernBusy = true; cassieErr = ''; el.cassieBtn.disabled = true;
     try {
-      if (!modernPartial) modernPartial = { rows: [], total: 0, n: 0, url: API + '/cards/search?q=' + encodeURIComponent(MODERN_QUERY) + '&unique=cards&order=name&prefer=oldest' };
+      if (!modernPartial) modernPartial = { rows: [], total: 0, n: 0, url: API + '/cards/search?q=' + encodeURIComponent(MODERN_QUERY) + '&unique=cards&order=name&prefer=newest' };
       const p = modernPartial;
       el.cassieMsg.textContent = p.n ? 'Resuming…' : 'Contacting Scryfall…';
       while (p.url) {
@@ -628,7 +629,7 @@ footer a{color:inherit}
         p.url = res.has_more ? res.next_page : null;
         el.cassieMsg.textContent = 'Downloaded ' + fmt(p.n) + ' of ' + fmt(p.total) + ' cards…';
       }
-      await kvPut([['modern', { syncedAt: Date.now(), rows: p.rows }]]);
+      await kvPut([['modern', { v: MODERN_VER, syncedAt: Date.now(), rows: p.rows }]]);
       setModern(p.rows); modernPartial = null;
     } catch (e) {
       cassieErr = 'Download stopped' + (modernPartial && modernPartial.n ? ' at ' + fmt(modernPartial.n) + ' of ' + fmt(modernPartial.total) + ' cards' : '') + ': ' + (e && e.message ? e.message : String(e)) + (modernPartial && modernPartial.n ? ' Tap Resume to continue.' : '');
@@ -1366,7 +1367,7 @@ footer a{color:inherit}
     await loadDecks();
     try {
       const [arr, m, mo] = await Promise.all([kvGet('cards'), kvGet('meta'), kvGet('modern')]);
-      if (mo && mo.rows) { setModern(mo.rows); renderCassie(); }
+      if (mo && mo.rows && mo.v === MODERN_VER) { setModern(mo.rows); renderCassie(); }
       if (arr && arr.length && m) {
         meta = m; cards = prepare(arr); findCmdr(); renderCmdr(); afterData();
         el.syncPanel.hidden = true; el.dataBtn.setAttribute('aria-expanded', 'false');

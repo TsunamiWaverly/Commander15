@@ -79,4 +79,4 @@ Picking a theme in Ideas loads that theme's EDHREC page and keeps only cards pla
 
 ## Cassie mode
 
-In Filters, tick "Cassie mode" to show only cards that have a printing on or after M15, each shown with its earliest such printing (image, set, year, and the Scryfall link). The first time, it asks you to download those printings (one extra search, a few minutes, kept on the device). The mode is remembered, applies to search, the commander picker and EDHREC ideas, and untick it to go back to the original printings.
+In Filters, tick "Cassie mode" to show only cards that have a 2015-frame printing on or after M15, each shown with its newest 2015-frame printing (image, set, year, and the Scryfall link). The first time, it asks you to download those printings (one extra search, a few minutes, kept on the device). The mode is remembered, applies to search, the commander picker and EDHREC ideas, and untick it to go back to the original printings.
