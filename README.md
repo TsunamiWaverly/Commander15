@@ -84,3 +84,9 @@ In Filters, tick "Cassie mode" to show only cards that have a 2015-frame printin
 ## EDHREC categories in Ideas
 
 Each commander's Ideas sheet has an "EDHREC categories" row built from the lists EDHREC itself publishes for that commander (for example New Cards, Top Cards, High Lift, Creatures, Instants, Sorceries, Utility Artifacts, Enchantments, Planeswalkers, Utility Lands, Mana Artifacts, Lands). Each chip shows how many pre-M15 cards it holds. Categories combine with the theme chips and Cassie mode. Only lists EDHREC actually has for that commander appear.
+
+## Minimize salt
+
+A "Minimize salt" checkbox appears in Filters (main search), in the commander picker's Refine panel, and in each Ideas sheet. It sorts the list by EDHREC salt score, lowest first. Every card shows "Salt 0.00-4.00" when a score is known, or "Salt —" when it is not.
+
+Scores come from EDHREC's top-salt page (loaded the first time you tick a Minimize salt box, then kept on the device) and from any score EDHREC includes on a commander page. EDHREC publishes scores for the saltier end of the card pool, so a card showing "Salt —" has no published score and sorts as if it were 0.

@@ -250,6 +250,7 @@ footer a{color:inherit}
       <p class="catnote" id="catNote" hidden>Silver border and other categories need a fresh download: tap Update cards.</p>
     </div>
     <label class="check" for="hideBanned"><input id="hideBanned" type="checkbox"> Hide cards Scryfall lists as banned or not legal in Commander</label>
+    <label class="check" for="salt"><input id="salt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div id="cassieField" style="display:grid;gap:8px">
       <label class="check" for="cassie"><input id="cassie" type="checkbox"> Cassie mode: only cards with a 2015-frame printing on or after M15, shown with the newest one</label>
       <div id="cassieBox" hidden>
@@ -347,6 +348,7 @@ footer a{color:inherit}
       <div class="field"><label for="pickSort">Sort by</label>
         <select id="pickSort"><option value="name">Name</option><option value="pop">EDHREC popularity</option><option value="cmc">Mana value</option></select></div>
     </div>
+    <label class="check" for="pickSalt"><input id="pickSalt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div><button id="pickReset" class="ghost" type="button">Reset refinements</button></div>
   </div>
   <ul id="pickList"></ul>
@@ -366,6 +368,7 @@ footer a{color:inherit}
     </div>
     <div class="field"><span class="lab">EDHREC themes</span><div id="sgTags" class="chips" style="margin-top:0"></div></div>
     <div class="field" id="sgCatField" hidden><span class="lab">EDHREC categories</span><div id="sgCats" class="chips" style="margin-top:0"></div></div>
+    <label class="check" for="sgSalt"><input id="sgSalt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div class="field"><label for="sgSort">Sort by</label>
       <select id="sgSort"><option value="syn">Synergy</option><option value="pop">Popularity</option></select></div>
     <div id="sgMsg" class="status" aria-live="polite"></div>
@@ -426,7 +429,7 @@ footer a{color:inherit}
     q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
     syncPanel:$('syncPanel'), syncTitle:$('syncTitle'), syncText:$('syncText'), syncBtn:$('syncBtn'), progress:$('progress'),
     fill:$('fill'), status:$('status'), err:$('err'), dataBtn:$('dataBtn'), filtersBtn:$('filtersBtn'), filters:$('filters'),
-    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned'), catChips:$('catChips'), cassie:$('cassie'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
+    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned'), catChips:$('catChips'), cassie:$('cassie'), salt:$('salt'), pickSalt:$('pickSalt'), sgSalt:$('sgSalt'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
     cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
     cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
     picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
@@ -444,7 +447,7 @@ footer a{color:inherit}
   let view = [];      // filtered + sorted
   let shown = 0;
   let meta = null;    // {syncedAt, count}
-  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false, cats:new Set(), cassie:false, cmdr:'' };
+  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false, cats:new Set(), cassie:false, salt:false, cmdr:'' };
   let modern = new Map(); // oracle id -> {im, s, y, u}: the earliest printing on or after M15 (Cassie mode)
   const cassieOn = () => st.cassie && modern.size > 0;
   const pr = c => (st.cassie && modern.get(c.i)) || c; // the printing to display
@@ -599,6 +602,49 @@ footer a{color:inherit}
       syncing = false; el.syncBtn.disabled = false;
     }
   }
+  /* ---------- salt scores (EDHREC, 0 = least salty to 4 = most) ---------- */
+  // Scores are collected from EDHREC's top-salt page and from any score present in a commander's page.
+  // A card with no score is shown as "Salt —" and sorts as if it were 0, since EDHREC publishes scores for the salty end first.
+  const SALT_URL = 'https://json.edhrec.com/pages/top/salt.json';
+  let saltMap = new Map(), saltBusy = null;
+  const saltKey = n => norm(String(n).split(' // ')[0]);
+  const saltOf = c => { const v = saltMap.get(saltKey(c.n)); return v == null ? null : v; };
+  const saltTxt = c => { if (!saltMap.size) return ''; const v = saltOf(c); return v == null ? 'Salt —' : 'Salt ' + v.toFixed(2); };
+  const saltSort = (a, b) => (saltOf(a) || 0) - (saltOf(b) || 0);
+  function saltFromJson(j) { // tolerant: any object with a name and a numeric salt (field "salt" or a "Salt ... n" label)
+    const out = [], seen = new Set();
+    (function walk(o, d) {
+      if (!o || typeof o !== 'object' || d > 8 || seen.has(o)) return; seen.add(o);
+      if (Array.isArray(o)) { o.forEach(x => walk(x, d + 1)); return; }
+      if (typeof o.name === 'string') {
+        let v = typeof o.salt === 'number' ? o.salt : null;
+        if (v == null && typeof o.label === 'string' && /salt/i.test(o.label)) { const m = o.label.match(/-?\d+(?:\.\d+)?/); if (m) v = parseFloat(m[0]); }
+        if (v != null && isFinite(v)) out.push([saltKey(o.name), v]);
+      }
+      for (const k in o) walk(o[k], d + 1);
+    })(j, 0);
+    return out;
+  }
+  function addSalt(rows) { let n = 0; for (const [k, v] of rows) { if (!saltMap.has(k)) n++; saltMap.set(k, v); } return n; }
+  async function ensureSalt() {
+    if (saltMap.size || saltBusy) return saltBusy;
+    saltBusy = (async () => {
+      try {
+        toast('Loading EDHREC salt scores…');
+        const r = await fetch(SALT_URL);
+        if (!r.ok) throw new Error('EDHREC returned ' + r.status);
+        const rows = saltFromJson(await r.json());
+        if (!rows.length) throw new Error('no scores found on that page');
+        addSalt(rows);
+        try { await kvPut([['salt', { t: Date.now(), rows: [...saltMap] }]]); } catch (e) { /* optional */ }
+        toast(fmt(saltMap.size) + ' salt scores loaded');
+      } catch (e) {
+        toast('Could not load salt scores (' + (e && e.message ? e.message : 'blocked') + '). Cards show Salt — until EDHREC data arrives.');
+      } finally { saltBusy = null; }
+      applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false);
+    })();
+    return saltBusy;
+  }
   /* ---------- Cassie mode: show each card's first printing on or after M15 ---------- */
   const MODERN_QUERY = 'date>=m15 frame:2015 game:paper';
   const MODERN_VER = 2; // 1 = earliest post-M15 printing (old); 2 = newest frame:2015 printing
@@ -695,7 +741,8 @@ footer a{color:inherit}
       : s === 'edhrec' ? (a, b) => (a.r == null) - (b.r == null) || a.r - b.r || (a.nm < b.nm ? -1 : 1)
       : s === 'oldest' ? (a, b) => { const ya = pr(a).y, yb = pr(b).y; return ya < yb ? -1 : ya > yb ? 1 : (a.nm < b.nm ? -1 : 1); }
       : (a, b) => (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
-    const active = terms.length || hasCI || mv != null || types.length || legendary || st.hideBanned || st.cats.size || cassie;
+    if (st.salt) view.sort((a, b) => saltSort(a, b) || (a.nm < b.nm ? -1 : 1));
+    const active = terms.length || hasCI || mv != null || types.length || legendary || st.hideBanned || st.cats.size || cassie || st.salt;
     el.count.textContent = fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
     el.clear.hidden = !(active);
     el.empty.hidden = view.length > 0 || !cards.length;
@@ -710,14 +757,14 @@ footer a{color:inherit}
       '<span class="body"><span class="l1"><span class="name">' + esc(c.n) + '</span><span class="cost">' + syms(c.mc) + '</span></span>' +
       '<span class="type">' + esc(c.t) + '</span>' +
       (c.o ? '<span class="text">' + syms(c.o) + '</span>' : '') +
-      '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(p.s.toUpperCase()) + ' ' + esc(p.y) + '</span>' + flag + '</span></span></button>' + addBtn(c) + '</div></li>';
+      '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(p.s.toUpperCase()) + ' ' + esc(p.y) + '</span>' + (saltTxt(c) ? '<span>' + saltTxt(c) + '</span>' : '') + flag + '</span></span></button>' + addBtn(c) + '</div></li>';
   }
   const printLabel = (c, p) => (cassieOn() && p !== c ? 'Printing ' : 'First printed ') + p.s.toUpperCase() + ' ' + p.y;
   function detailHtml(c) {
     const p = pr(c);
     return '<div class="detail">' + (p.im ? '<img class="big" alt="' + esc(c.n) + '" src="' + IMG_BASE + 'normal/' + esc(p.im) + '">' : '') +
       '<div class="full">' + syms(c.o || 'No rules text.') + '</div>' +
-      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, printLabel(c, p), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).map(esc).join(' · ') + '</div>' +
+      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, printLabel(c, p), saltTxt(c), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).map(esc).join(' · ') + '</div>' +
       (p.u ? '<a href="' + esc(p.u) + '" target="_blank" rel="noopener">View on Scryfall</a>' : '') + '</div>';
   }
   function renderList(reset) {
@@ -738,7 +785,7 @@ footer a{color:inherit}
 
   /* ---------- state ---------- */
   function saveState() {
-    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned, cats:[...st.cats], cassie:st.cassie, cmdr:st.cmdr })); } catch (e) {}
+    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned, cats:[...st.cats], cassie:st.cassie, salt:st.salt, cmdr:st.cmdr })); } catch (e) {}
   }
   function loadState() {
     try {
@@ -746,7 +793,7 @@ footer a{color:inherit}
       if (!s) return;
       st.ci = new Set(s.ci || []); st.ciMode = s.ciMode === 'exact' ? 'exact' : 'within';
       st.types = new Set((s.types || []).filter(t => TYPES.includes(t)));
-      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned; st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
+      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned; st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.salt = !!s.salt; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
     } catch (e) {}
   }
   function syncControls() {
@@ -755,7 +802,7 @@ footer a{color:inherit}
     el.typeChips.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', st.types.has(b.dataset.t)));
     el.catChips.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', st.cats.has(b.dataset.k)));
     el.hideBanned.disabled = st.cats.size > 0;
-    el.mv.value = st.mv; el.sort.value = st.sort; el.hideBanned.checked = st.hideBanned; el.cassie.checked = st.cassie; renderCassie();
+    el.mv.value = st.mv; el.sort.value = st.sort; el.hideBanned.checked = st.hideBanned; el.cassie.checked = st.cassie; el.salt.checked = st.salt; renderCassie();
   }
 
   /* ---------- commander ---------- */
@@ -789,7 +836,7 @@ footer a{color:inherit}
       big.src = IMG_BASE + 'large/' + p.im;
     } else el.vwImg.removeAttribute('src');
     el.vwText.innerHTML = '<b>' + esc(c.n) + '</b> ' + syms(c.mc || '') + '\n' + esc(c.t) + (c.pt ? '  ' + esc(c.pt) : '') + '\n\n' + syms(c.o || 'No rules text.');
-    el.vwFacts.textContent = ['Mana value ' + c.cmc, printLabel(c, p), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].join(' · ');
+    el.vwFacts.textContent = ['Mana value ' + c.cmc, printLabel(c, p), saltTxt(c), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].join(' · ');
     el.vwLink.hidden = !p.u; if (p.u) el.vwLink.href = p.u;
     el.viewer.hidden = false; document.body.style.overflow = 'hidden';
   }
@@ -849,7 +896,7 @@ footer a{color:inherit}
     ['Combat', /extra combat|haste|whenever [\w ,]* attacks/],
     ['Mana', /add \{|adds? (an additional|one mana)/]
   ];
-  const pk = { ci: new Set(), mode: 'exact', themes: new Set(), mv: '', sort: 'name' };
+  const pk = { ci: new Set(), mode: 'exact', themes: new Set(), mv: '', sort: 'name', salt: false };
   function themeBits(c) {
     if (c.tb == null) { const t = norm(c.o); c.tb = THEMES.reduce((b, th, i) => ((th[1] instanceof RegExp ? th[1].test(t) : th[1](c, t)) ? b | (1 << i) : b), 0); }
     return c.tb;
@@ -873,6 +920,7 @@ footer a{color:inherit}
     const first = terms.find(t => !t.neg);
     const nameHit = c => (first && c.nm.includes(first.t) ? 0 : 1);
     const s = pk.sort;
+    if (pk.salt) { out.sort((a, b) => saltSort(a, b) || (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0)); return out; }
     out.sort((a, b) => nameHit(a) - nameHit(b) ||
       (s === 'pop' ? (a.r == null) - (b.r == null) || a.r - b.r : s === 'cmc' ? a.cmc - b.cmc : 0) ||
       (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
@@ -883,7 +931,8 @@ footer a{color:inherit}
     el.pickMode.querySelectorAll('[data-pm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pm === pk.mode));
     el.pickThemes.querySelectorAll('[data-th]').forEach(b => b.setAttribute('aria-pressed', pk.themes.has(+b.dataset.th)));
     el.pickMv.value = pk.mv; el.pickSort.value = pk.sort;
-    const n = (pk.ci.size ? 1 : 0) + pk.themes.size + (pk.mv !== '' ? 1 : 0);
+    el.pickSalt.checked = pk.salt;
+    const n = (pk.ci.size ? 1 : 0) + pk.themes.size + (pk.mv !== '' ? 1 : 0) + (pk.salt ? 1 : 0);
     el.refineBtn.textContent = n ? 'Refine · ' + n : 'Refine';
   }
   function renderPick() {
@@ -903,7 +952,7 @@ footer a{color:inherit}
     el.pickList.insertAdjacentHTML('beforeend', list.map(c =>
       '<li class="pickrow">' + (pr(c).im ? '<button class="pthumb" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size"><img loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(pr(c).im) + '"></button>' : '') +
       '<button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
-      '<span class="type">' + esc(c.t) + '</span></span>' +
+      '<span class="type">' + esc(c.t) + '</span>' + (saltTxt(c) ? '<span class="type">' + saltTxt(c) + '</span>' : '') + '</span>' +
       (c.l === 'legal' ? '' : '<span class="flag">' + esc(legLabel(c)) + '</span>') +
       '<span class="cost">' + ciPills(c.ci) + '</span></button>' +
       '<button class="ghost sbtn" type="button" data-s="' + esc(c.i) + '" aria-label="EDHREC suggestions for ' + esc(c.n) + '">Ideas</button></li>').join(''));
@@ -921,7 +970,7 @@ footer a{color:inherit}
     document.body.style.overflow = 'hidden'; el.pickQ.focus();
   }
   function closePicker() { el.picker.hidden = true; document.body.style.overflow = el.deckSheet.hidden ? '' : 'hidden'; }
-  function resetRefine() { pk.ci.clear(); pk.mode = 'exact'; pk.themes.clear(); pk.mv = ''; pk.sort = 'name'; el.pickQ.value = ''; renderPick(); }
+  function resetRefine() { pk.ci.clear(); pk.mode = 'exact'; pk.themes.clear(); pk.mv = ''; pk.sort = 'name'; pk.salt = false; el.pickQ.value = ''; renderPick(); }
 
   /* ---------- EDHREC suggestions ---------- */
   // EDHREC has no official API. This reads the same JSON pages its own site uses, one page per request,
@@ -940,7 +989,7 @@ footer a{color:inherit}
         if (!v || !v.name) continue;
         const s = typeof v.synergy === 'number' ? v.synergy : null;
         const cur = byName.get(v.name);
-        if (!cur) byName.set(v.name, { n: v.name, s, nd: v.num_decks || 0, pd: v.potential_decks || 0, L: [k] });
+        if (!cur) byName.set(v.name, { n: v.name, s, nd: v.num_decks || 0, pd: v.potential_decks || 0, L: [k], sa: typeof v.salt === 'number' ? v.salt : undefined });
         else {
           if (!cur.L.includes(k)) cur.L.push(k);
           if (s != null && (cur.s == null || s > cur.s)) { cur.s = s; cur.nd = v.num_decks || 0; cur.pd = v.potential_decks || 0; }
@@ -970,6 +1019,7 @@ footer a{color:inherit}
     if (sg.theme && sg.base) { base = new Map(); for (const e of sg.base.cards) base.set(e.n, e.pd ? e.nd / e.pd : 0); }
     for (const e of sg.data.cards) {
       const c = nameIdx.get(norm(e.n));
+      if (e.sa != null && !saltMap.has(saltKey(e.n))) saltMap.set(saltKey(e.n), e.sa); // scores EDHREC attaches to its own lists
       if (!c || c === sg.c || (cassieOn() && !modern.has(c.i))) continue;
       const inc = e.pd ? e.nd / e.pd : null;
       if (base && inc != null) {
@@ -985,6 +1035,7 @@ footer a{color:inherit}
     const key = r => (r.lift != null ? r.lift : (r.s == null ? -9 : r.s));
     if (sg.sort === 'pop') out.sort((a, b) => (b.inc || 0) - (a.inc || 0));
     else out.sort((a, b) => key(b) - key(a));
+    if (sg.salt) out.sort((a, b) => saltSort(a.c, b.c)); // stable: keeps the synergy order among equal scores
     return { rows: out, total: sg.data.cards.length, counts };
   }
   function sgAddHtml(c) {
@@ -996,7 +1047,8 @@ footer a{color:inherit}
     const stats = [
       r.lift != null ? '<span class="syn">+' + Math.round(r.lift * 100) + '% vs all decks</span>'
         : (r.s == null ? '' : '<span class="syn">' + (r.s < 0 ? '−' : '+') + Math.abs(Math.round(r.s * 100)) + '% synergy</span>'),
-      r.inc == null ? '' : Math.round(r.inc * 100) + '% of ' + (r.lift != null ? 'theme ' : '') + 'decks'
+      r.inc == null ? '' : Math.round(r.inc * 100) + '% of ' + (r.lift != null ? 'theme ' : '') + 'decks',
+      saltTxt(c)
     ].filter(Boolean).join(' · ');
     const flag = c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>';
     const th = pr(c).im ? '<img class="sthumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(pr(c).im) + '">' : '';
@@ -1064,11 +1116,11 @@ footer a{color:inherit}
     }
   }
   async function openSugg(c, mode) {
-    sg = { c, mode, theme: '', cat: '', data: null, base: null, shown: 0, sort: 'syn', tags: [], req: 0 };
+    sg = { c, mode, salt: false, theme: '', cat: '', data: null, base: null, shown: 0, sort: 'syn', tags: [], req: 0 };
     el.sgTitle.textContent = c.n; el.sgCI.innerHTML = ciPills(c.ci);
     el.sgUse.hidden = mode !== 'preview';
     el.sgLink.href = EDHREC_SITE + slugOf(c.n);
-    el.sgTags.innerHTML = ''; el.sgList.innerHTML = ''; el.sgSort.value = 'syn';
+    el.sgTags.innerHTML = ''; el.sgList.innerHTML = ''; el.sgSort.value = 'syn'; el.sgSalt.checked = false;
     el.sugg.hidden = false; document.body.style.overflow = 'hidden';
     await loadSugg('');
   }
@@ -1285,13 +1337,14 @@ footer a{color:inherit}
     el.mv.addEventListener('change', () => { st.mv = el.mv.value; applyFilters(); });
     el.sort.addEventListener('change', () => { st.sort = el.sort.value; applyFilters(); });
     el.hideBanned.addEventListener('change', () => { st.hideBanned = el.hideBanned.checked; applyFilters(); });
+    el.salt.addEventListener('change', () => { st.salt = el.salt.checked; if (st.salt) ensureSalt(); applyFilters(true); });
     el.cassie.addEventListener('change', () => {
       st.cassie = el.cassie.checked; cassieErr = ''; renderCassie();
       applyFilters(true); renderCmdr(); if (!el.picker.hidden) renderPick();
     });
     el.cassieBtn.addEventListener('click', syncModern);
     el.clear.addEventListener('click', () => {
-      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.hideBanned = false; st.cassie = false; st.ciMode = 'within';
+      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.hideBanned = false; st.cassie = false; st.salt = false; st.ciMode = 'within';
       syncControls(); applyFilters();
     });
     el.catChips.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; st.cats.has(k) ? st.cats.delete(k) : st.cats.add(k); syncControls(); applyFilters(); });
@@ -1330,6 +1383,7 @@ footer a{color:inherit}
     el.pickMode.addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; pk.mode = b.dataset.pm; renderPick(); });
     el.pickThemes.addEventListener('click', e => { const b = e.target.closest('[data-th]'); if (!b) return; const i = +b.dataset.th; pk.themes.has(i) ? pk.themes.delete(i) : pk.themes.add(i); renderPick(); });
     el.pickMv.addEventListener('change', () => { pk.mv = el.pickMv.value; renderPick(); });
+    el.pickSalt.addEventListener('change', () => { pk.salt = el.pickSalt.checked; if (pk.salt) ensureSalt(); renderPick(); });
     el.pickSort.addEventListener('change', () => { pk.sort = el.pickSort.value; renderPick(); });
     el.pickReset.addEventListener('click', resetRefine);
     el.cmdrIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
@@ -1342,6 +1396,7 @@ footer a{color:inherit}
     el.deckIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
     el.sgClose.addEventListener('click', closeSugg);
     el.sgUse.addEventListener('click', () => { const c = sg && sg.c; closeSugg(); if (c) { closePicker(); setCmdr(c.i); } });
+    el.sgSalt.addEventListener('change', () => { if (!sg) return; sg.salt = el.sgSalt.checked; if (sg.salt) ensureSalt(); renderSugg(false); });
     el.sgCats.addEventListener('click', e => { const b = e.target.closest('[data-ct]'); if (!b || !sg) return; sg.cat = b.dataset.ct; renderSugg(false); });
     el.sgTags.addEventListener('click', e => { const b = e.target.closest('[data-tg]'); if (!b || !sg) return; loadSugg(b.dataset.tg); });
     el.sgSort.addEventListener('change', () => { if (!sg) return; sg.sort = el.sgSort.value; renderSugg(false); });
@@ -1389,7 +1444,8 @@ footer a{color:inherit}
   async function boot() {
     await loadDecks();
     try {
-      const [arr, m, mo] = await Promise.all([kvGet('cards'), kvGet('meta'), kvGet('modern')]);
+      const [arr, m, mo, sl] = await Promise.all([kvGet('cards'), kvGet('meta'), kvGet('modern'), kvGet('salt')]);
+      if (sl && sl.rows) addSalt(sl.rows);
       if (mo && mo.rows && mo.v === MODERN_VER) { setModern(mo.rows); renderCassie(); }
       if (arr && arr.length && m) {
         meta = m; cards = prepare(arr); findCmdr(); renderCmdr(); afterData();
