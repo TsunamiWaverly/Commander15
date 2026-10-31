@@ -90,3 +90,7 @@ Each commander's Ideas sheet has an "EDHREC categories" row built from the lists
 A "Minimize salt" checkbox appears in Filters (main search), in the commander picker's Refine panel, and in each Ideas sheet. It sorts the list by EDHREC salt score, lowest first. Every card shows "Salt 0.00-4.00" when a score is known, or "Salt —" when it is not.
 
 Scores come from EDHREC's top-salt page (loaded the first time you tick a Minimize salt box, then kept on the device) and from any score EDHREC includes on a commander page. EDHREC publishes scores for the saltier end of the card pool, so a card showing "Salt —" has no published score and sorts as if it were 0.
+
+## Not-legal cards are hidden by default
+
+Cards that are not legal in Commander (banned, silver border, conspiracies and so on) no longer appear in search, the commander picker or Ideas until you tick "Show cards that are not legal in Commander" in Filters. The three unbanned cards still count as legal. Picking a category chip (for example Silver border) shows that category even while the box is unticked. Search and Ideas tell you how many were hidden.

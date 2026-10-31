@@ -249,7 +249,7 @@ footer a{color:inherit}
       <div class="chips" id="catChips" style="margin-top:0"></div>
       <p class="catnote" id="catNote" hidden>Silver border and other categories need a fresh download: tap Update cards.</p>
     </div>
-    <label class="check" for="hideBanned"><input id="hideBanned" type="checkbox"> Hide cards Scryfall lists as banned or not legal in Commander</label>
+    <label class="check" for="showIllegal"><input id="showIllegal" type="checkbox"> Show cards that are not legal in Commander (banned, silver border, etc.)</label>
     <label class="check" for="salt"><input id="salt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div id="cassieField" style="display:grid;gap:8px">
       <label class="check" for="cassie"><input id="cassie" type="checkbox"> Cassie mode: only cards with a 2015-frame printing on or after M15, shown with the newest one</label>
@@ -429,7 +429,7 @@ footer a{color:inherit}
     q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
     syncPanel:$('syncPanel'), syncTitle:$('syncTitle'), syncText:$('syncText'), syncBtn:$('syncBtn'), progress:$('progress'),
     fill:$('fill'), status:$('status'), err:$('err'), dataBtn:$('dataBtn'), filtersBtn:$('filtersBtn'), filters:$('filters'),
-    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), hideBanned:$('hideBanned'), catChips:$('catChips'), cassie:$('cassie'), salt:$('salt'), pickSalt:$('pickSalt'), sgSalt:$('sgSalt'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
+    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), showIllegal:$('showIllegal'), catChips:$('catChips'), cassie:$('cassie'), salt:$('salt'), pickSalt:$('pickSalt'), sgSalt:$('sgSalt'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
     cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
     cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
     picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
@@ -447,7 +447,7 @@ footer a{color:inherit}
   let view = [];      // filtered + sorted
   let shown = 0;
   let meta = null;    // {syncedAt, count}
-  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', hideBanned:false, cats:new Set(), cassie:false, salt:false, cmdr:'' };
+  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', showIllegal:false, cats:new Set(), cassie:false, salt:false, cmdr:'' };
   let modern = new Map(); // oracle id -> {im, s, y, u}: the earliest printing on or after M15 (Cassie mode)
   const cassieOn = () => st.cassie && modern.size > 0;
   const pr = c => (st.cassie && modern.get(c.i)) || c; // the printing to display
@@ -730,7 +730,7 @@ footer a{color:inherit}
       if (mv != null && c.cmc > mv) return false;
       if (cassie && !modern.has(c.i)) return false;
       if (st.cats.size) { if (!st.cats.has(c.cat)) return false; }
-      else if (st.hideBanned && c.l !== 'legal') return false;
+      else if (!st.showIllegal && c.l !== 'legal') return false;
       if (legendary && !c.ty.includes('legendary')) return false;
       if (types.length && !types.some(t => c.ty.includes(t))) return false;
       for (const t of terms) { if (c.h.includes(t.t) === t.neg) return false; }
@@ -742,7 +742,7 @@ footer a{color:inherit}
       : s === 'oldest' ? (a, b) => { const ya = pr(a).y, yb = pr(b).y; return ya < yb ? -1 : ya > yb ? 1 : (a.nm < b.nm ? -1 : 1); }
       : (a, b) => (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
     if (st.salt) view.sort((a, b) => saltSort(a, b) || (a.nm < b.nm ? -1 : 1));
-    const active = terms.length || hasCI || mv != null || types.length || legendary || st.hideBanned || st.cats.size || cassie || st.salt;
+    const active = terms.length || hasCI || mv != null || types.length || legendary || !st.showIllegal || st.cats.size || cassie || st.salt;
     el.count.textContent = fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
     el.clear.hidden = !(active);
     el.empty.hidden = view.length > 0 || !cards.length;
@@ -780,12 +780,12 @@ footer a{color:inherit}
     const keys = Object.keys(CAT_LABEL).filter(k => catCounts[k]);
     el.catChips.innerHTML = keys.map(k => '<button class="chip" type="button" data-k="' + k + '" aria-pressed="' + st.cats.has(k) + '">' + esc(CAT_LABEL[k]) + ' <small>' + fmt(catCounts[k]) + '</small></button>').join('');
     el.catNote.hidden = !cards.length || !!catCounts.silver; // older saved lists lack border data
-    el.hideBanned.disabled = st.cats.size > 0;
+    el.showIllegal.disabled = st.cats.size > 0;
   }
 
   /* ---------- state ---------- */
   function saveState() {
-    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, hideBanned:st.hideBanned, cats:[...st.cats], cassie:st.cassie, salt:st.salt, cmdr:st.cmdr })); } catch (e) {}
+    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, showIllegal:st.showIllegal, cats:[...st.cats], cassie:st.cassie, salt:st.salt, cmdr:st.cmdr })); } catch (e) {}
   }
   function loadState() {
     try {
@@ -793,7 +793,7 @@ footer a{color:inherit}
       if (!s) return;
       st.ci = new Set(s.ci || []); st.ciMode = s.ciMode === 'exact' ? 'exact' : 'within';
       st.types = new Set((s.types || []).filter(t => TYPES.includes(t)));
-      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.hideBanned = !!s.hideBanned; st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.salt = !!s.salt; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
+      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.showIllegal = !!s.showIllegal; // the old hideBanned setting is dropped: not-legal cards are hidden unless this is ticked st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.salt = !!s.salt; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
     } catch (e) {}
   }
   function syncControls() {
@@ -801,8 +801,8 @@ footer a{color:inherit}
     el.ciMode.querySelectorAll('[data-m]').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === st.ciMode));
     el.typeChips.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', st.types.has(b.dataset.t)));
     el.catChips.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', st.cats.has(b.dataset.k)));
-    el.hideBanned.disabled = st.cats.size > 0;
-    el.mv.value = st.mv; el.sort.value = st.sort; el.hideBanned.checked = st.hideBanned; el.cassie.checked = st.cassie; el.salt.checked = st.salt; renderCassie();
+    el.showIllegal.disabled = st.cats.size > 0;
+    el.mv.value = st.mv; el.sort.value = st.sort; el.showIllegal.checked = st.showIllegal; el.cassie.checked = st.cassie; el.salt.checked = st.salt; renderCassie();
   }
 
   /* ---------- commander ---------- */
@@ -906,12 +906,13 @@ footer a{color:inherit}
     const hasCI = pk.ci.size > 0, mask = bitsOf([...pk.ci].join(''));
     let tmask = 0; pk.themes.forEach(i => { tmask |= 1 << i; });
     const mv = pk.mv === '' ? null : Number(pk.mv);
-    const out = [];
+    const out = []; pkHidden = 0;
     for (const c of cards) {
       if (!c.cm) continue;
       if (hasCI && (pk.mode === 'exact' ? c.b !== mask : (c.b & ~mask))) continue;
       if (mv != null && c.cmc > mv) continue;
       if (cassieOn() && !modern.has(c.i)) continue;
+      if (!st.showIllegal && c.l !== 'legal') { pkHidden++; continue; }
       if (tmask && (themeBits(c) & tmask) !== tmask) continue;
       let ok = true;
       for (const t of terms) { if (c.h.includes(t.t) === t.neg) { ok = false; break; } }
@@ -937,12 +938,12 @@ footer a{color:inherit}
   }
   function renderPick() {
     pkView = pickMatches(); pkShown = 0;
-    el.pickHint.textContent = fmt(pkView.length) + ' possible commanders';
+    el.pickHint.textContent = fmt(pkView.length) + ' possible commanders' + (pkHidden ? ' (' + fmt(pkHidden) + ' not legal hidden; show them under Filters)' : '');
     el.pickList.innerHTML = '';
     appendPick();
     renderRefine();
   }
-  let pkView = [], pkShown = 0;
+  let pkView = [], pkShown = 0, pkHidden = 0;
   const pickWatch = watch(el.pickMore, () => appendPick(), el.pickList); // the list scrolls itself, so it is the observer's root
   function appendPick() {
     const list = pkView.slice(pkShown, pkShown + 60);
@@ -1014,6 +1015,7 @@ footer a{color:inherit}
   }
   function suggRows() {
     const out = [];
+    if (sg) sg.hidden = 0;
     if (!sg || !sg.data) return { rows: out, total: 0, counts: {} };
     let base = null;
     if (sg.theme && sg.base) { base = new Map(); for (const e of sg.base.cards) base.set(e.n, e.pd ? e.nd / e.pd : 0); }
@@ -1021,6 +1023,7 @@ footer a{color:inherit}
       const c = nameIdx.get(norm(e.n));
       if (e.sa != null && !saltMap.has(saltKey(e.n))) saltMap.set(saltKey(e.n), e.sa); // scores EDHREC attaches to its own lists
       if (!c || c === sg.c || (cassieOn() && !modern.has(c.i))) continue;
+      if (!st.showIllegal && c.l !== 'legal') { sg.hidden++; continue; }
       const inc = e.pd ? e.nd / e.pd : null;
       if (base && inc != null) {
         // A theme page lists every card its decks play, so keep only cards played MORE often in that theme
@@ -1078,6 +1081,7 @@ footer a{color:inherit}
       : 'None of EDHREC’s ' + fmt(total) + ' suggestions' + th + (lifted ? ' are played more in these decks than overall, among cards printed before M15.' : ' were printed before M15.');
     if (tag && tag.c != null) msg += ' This theme has ' + fmt(tag.c) + ' deck' + (tag.c === 1 ? '' : 's') + (tag.c < 10 ? ', too few for the percentages to mean much.' : '.');
     const cn = sg.cat && ((sg.data.cats || []).find(c => c.k === sg.cat) || {}).h;
+    if (sg.hidden) msg += ' ' + fmt(sg.hidden) + ' not-legal card' + (sg.hidden === 1 ? '' : 's') + ' hidden (show them under Filters).';
     el.sgMsg.textContent = (cn ? cn + ': ' : '') + msg;
   }
   function renderSuggTags() {
@@ -1336,7 +1340,7 @@ footer a{color:inherit}
     el.typeChips.addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; const t = b.dataset.t; st.types.has(t) ? st.types.delete(t) : st.types.add(t); syncControls(); applyFilters(); });
     el.mv.addEventListener('change', () => { st.mv = el.mv.value; applyFilters(); });
     el.sort.addEventListener('change', () => { st.sort = el.sort.value; applyFilters(); });
-    el.hideBanned.addEventListener('change', () => { st.hideBanned = el.hideBanned.checked; applyFilters(); });
+    el.showIllegal.addEventListener('change', () => { st.showIllegal = el.showIllegal.checked; applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false); });
     el.salt.addEventListener('change', () => { st.salt = el.salt.checked; if (st.salt) ensureSalt(); applyFilters(true); });
     el.cassie.addEventListener('change', () => {
       st.cassie = el.cassie.checked; cassieErr = ''; renderCassie();
@@ -1344,7 +1348,7 @@ footer a{color:inherit}
     });
     el.cassieBtn.addEventListener('click', syncModern);
     el.clear.addEventListener('click', () => {
-      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.hideBanned = false; st.cassie = false; st.salt = false; st.ciMode = 'within';
+      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.showIllegal = false; st.cassie = false; st.salt = false; st.ciMode = 'within';
       syncControls(); applyFilters();
     });
     el.catChips.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; st.cats.has(k) ? st.cats.delete(k) : st.cats.add(k); syncControls(); applyFilters(); });
