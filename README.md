@@ -94,3 +94,9 @@ Scores come from EDHREC's top-salt page (loaded the first time you tick a Minimi
 ## Not-legal cards are hidden by default
 
 Cards that are not legal in Commander (banned, silver border, conspiracies and so on) no longer appear in search, the commander picker or Ideas until you tick "Show cards that are not legal in Commander" in Filters. The three unbanned cards still count as legal. Picking a category chip (for example Silver border) shows that category even while the box is unticked. Search and Ideas tell you how many were hidden.
+
+## Retro frame filter
+
+In Filters, "Retro frame" can show only cards that have a printing in the retro 1993 or 1997 frame, or only cards with a retro-frame reprint printed in 2004 or later (the modern retro-frame reprints). It needs a one-time download of that data (one Scryfall search, a few minutes, kept on the device) and works in search, the commander picker and Ideas.
+
+Note: nearly every card first printed before 2003 originally used those frames, so "any retro-frame printing" covers most of the older pool; the 2004-or-later option is the more selective one.

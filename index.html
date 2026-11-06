@@ -251,6 +251,14 @@ footer a{color:inherit}
     </div>
     <label class="check" for="showIllegal"><input id="showIllegal" type="checkbox"> Show cards that are not legal in Commander (banned, silver border, etc.)</label>
     <label class="check" for="salt"><input id="salt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
+    <div id="retroField" style="display:grid;gap:8px">
+      <label for="retro">Retro frame</label>
+      <select id="retro"><option value="">Any card</option><option value="any">Only cards with a retro-frame printing</option><option value="reprint">Only cards with a retro-frame reprint (2004 or later)</option></select>
+      <div id="retroBox" hidden>
+        <div class="status" id="retroMsg" aria-live="polite"></div>
+        <button id="retroBtn" class="btn alt" type="button">Download retro-frame data</button>
+      </div>
+    </div>
     <div id="cassieField" style="display:grid;gap:8px">
       <label class="check" for="cassie"><input id="cassie" type="checkbox"> Cassie mode: only cards with a 2015-frame printing on or after M15, shown with the newest one</label>
       <div id="cassieBox" hidden>
@@ -429,7 +437,7 @@ footer a{color:inherit}
     q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
     syncPanel:$('syncPanel'), syncTitle:$('syncTitle'), syncText:$('syncText'), syncBtn:$('syncBtn'), progress:$('progress'),
     fill:$('fill'), status:$('status'), err:$('err'), dataBtn:$('dataBtn'), filtersBtn:$('filtersBtn'), filters:$('filters'),
-    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), showIllegal:$('showIllegal'), catChips:$('catChips'), cassie:$('cassie'), salt:$('salt'), pickSalt:$('pickSalt'), sgSalt:$('sgSalt'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
+    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), showIllegal:$('showIllegal'), catChips:$('catChips'), cassie:$('cassie'), retro:$('retro'), retroBox:$('retroBox'), retroMsg:$('retroMsg'), retroBtn:$('retroBtn'), salt:$('salt'), pickSalt:$('pickSalt'), sgSalt:$('sgSalt'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
     cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
     cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
     picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
@@ -447,7 +455,7 @@ footer a{color:inherit}
   let view = [];      // filtered + sorted
   let shown = 0;
   let meta = null;    // {syncedAt, count}
-  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', showIllegal:false, cats:new Set(), cassie:false, salt:false, cmdr:'' };
+  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', showIllegal:false, cats:new Set(), retro:'', cassie:false, salt:false, cmdr:'' };
   let modern = new Map(); // oracle id -> {im, s, y, u}: the earliest printing on or after M15 (Cassie mode)
   const cassieOn = () => st.cassie && modern.size > 0;
   const pr = c => (st.cassie && modern.get(c.i)) || c; // the printing to display
@@ -645,6 +653,50 @@ footer a{color:inherit}
     })();
     return saltBusy;
   }
+  /* ---------- retro frame: cards that have a printing in the 1993 or 1997 frame ---------- */
+  // One search (newest retro-frame printing of each card) tells us both "has one" and "has one printed 2004 or later".
+  const RETRO_QUERY = '(frame:1993 or frame:1997) game:paper';
+  const RETRO_REPRINT_YEAR = 2004;
+  let retroMap = new Map(), retroBusy = false, retroPartial = null, retroErr = '';
+  const retroOk = c => {
+    if (!st.retro || !retroMap.size) return true; // inactive until the data is downloaded
+    const y = retroMap.get(c.i);
+    return y != null && (st.retro === 'any' || y >= RETRO_REPRINT_YEAR);
+  };
+  function renderRetro() {
+    const need = !!st.retro && !retroMap.size;
+    el.retroBox.hidden = !(need || retroBusy);
+    if (retroBusy) return;
+    el.retroMsg.textContent = retroErr || 'This filter needs a one-time download of which cards have a retro-frame printing (a few minutes, paced to respect Scryfall’s limit).';
+    el.retroBtn.textContent = retroPartial && retroPartial.n ? 'Resume download' : 'Download retro-frame data';
+  }
+  async function syncRetro() {
+    if (retroBusy) return;
+    retroBusy = true; retroErr = ''; el.retroBtn.disabled = true;
+    try {
+      if (!retroPartial) retroPartial = { rows: [], total: 0, n: 0, url: API + '/cards/search?q=' + encodeURIComponent(RETRO_QUERY) + '&unique=cards&order=name&prefer=newest' };
+      const p = retroPartial;
+      el.retroMsg.textContent = p.n ? 'Resuming…' : 'Contacting Scryfall…';
+      while (p.url) {
+        const res = await fetchJson(p.url);
+        if (!p.total) p.total = res.total_cards;
+        for (const c of res.data) {
+          const k = c.oracle_id || c.id;
+          if (idx.has(k)) p.rows.push([k, parseInt(String(c.released_at || '0').slice(0, 4), 10) || 0]);
+        }
+        p.n += res.data.length;
+        p.url = res.has_more ? res.next_page : null;
+        el.retroMsg.textContent = 'Downloaded ' + fmt(p.n) + ' of ' + fmt(p.total) + ' cards…';
+      }
+      await kvPut([['retro', { v: 1, syncedAt: Date.now(), rows: p.rows }]]);
+      retroMap = new Map(p.rows); retroPartial = null;
+    } catch (e) {
+      retroErr = 'Download stopped' + (retroPartial && retroPartial.n ? ' at ' + fmt(retroPartial.n) + ' of ' + fmt(retroPartial.total) + ' cards' : '') + ': ' + (e && e.message ? e.message : String(e)) + (retroPartial && retroPartial.n ? ' Tap Resume to continue.' : '');
+    } finally {
+      retroBusy = false; el.retroBtn.disabled = false;
+      renderRetro(); applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false);
+    }
+  }
   /* ---------- Cassie mode: show each card's first printing on or after M15 ---------- */
   const MODERN_QUERY = 'date>=m15 frame:2015 game:paper';
   const MODERN_VER = 2; // 1 = earliest post-M15 printing (old); 2 = newest frame:2015 printing
@@ -729,6 +781,7 @@ footer a{color:inherit}
       if (hasCI && (within ? (c.b & ~mask) : (c.b !== mask))) return false;
       if (mv != null && c.cmc > mv) return false;
       if (cassie && !modern.has(c.i)) return false;
+      if (!retroOk(c)) return false;
       if (st.cats.size) { if (!st.cats.has(c.cat)) return false; }
       else if (!st.showIllegal && c.l !== 'legal') return false;
       if (legendary && !c.ty.includes('legendary')) return false;
@@ -742,7 +795,7 @@ footer a{color:inherit}
       : s === 'oldest' ? (a, b) => { const ya = pr(a).y, yb = pr(b).y; return ya < yb ? -1 : ya > yb ? 1 : (a.nm < b.nm ? -1 : 1); }
       : (a, b) => (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
     if (st.salt) view.sort((a, b) => saltSort(a, b) || (a.nm < b.nm ? -1 : 1));
-    const active = terms.length || hasCI || mv != null || types.length || legendary || !st.showIllegal || st.cats.size || cassie || st.salt;
+    const active = terms.length || hasCI || mv != null || types.length || legendary || st.retro || !st.showIllegal || st.cats.size || cassie || st.salt;
     el.count.textContent = fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
     el.clear.hidden = !(active);
     el.empty.hidden = view.length > 0 || !cards.length;
@@ -785,7 +838,7 @@ footer a{color:inherit}
 
   /* ---------- state ---------- */
   function saveState() {
-    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, showIllegal:st.showIllegal, cats:[...st.cats], cassie:st.cassie, salt:st.salt, cmdr:st.cmdr })); } catch (e) {}
+    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, retro:st.retro, showIllegal:st.showIllegal, cats:[...st.cats], cassie:st.cassie, salt:st.salt, cmdr:st.cmdr })); } catch (e) {}
   }
   function loadState() {
     try {
@@ -793,7 +846,7 @@ footer a{color:inherit}
       if (!s) return;
       st.ci = new Set(s.ci || []); st.ciMode = s.ciMode === 'exact' ? 'exact' : 'within';
       st.types = new Set((s.types || []).filter(t => TYPES.includes(t)));
-      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.showIllegal = !!s.showIllegal; // the old hideBanned setting is dropped: not-legal cards are hidden unless this is ticked st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.salt = !!s.salt; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
+      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.retro = s.retro === 'any' || s.retro === 'reprint' ? s.retro : ''; st.showIllegal = !!s.showIllegal; // the old hideBanned setting is dropped: not-legal cards are hidden unless this is ticked st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.salt = !!s.salt; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
     } catch (e) {}
   }
   function syncControls() {
@@ -802,7 +855,7 @@ footer a{color:inherit}
     el.typeChips.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', st.types.has(b.dataset.t)));
     el.catChips.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', st.cats.has(b.dataset.k)));
     el.showIllegal.disabled = st.cats.size > 0;
-    el.mv.value = st.mv; el.sort.value = st.sort; el.showIllegal.checked = st.showIllegal; el.cassie.checked = st.cassie; el.salt.checked = st.salt; renderCassie();
+    el.mv.value = st.mv; el.sort.value = st.sort; el.showIllegal.checked = st.showIllegal; el.retro.value = st.retro; renderRetro(); el.cassie.checked = st.cassie; el.salt.checked = st.salt; renderCassie();
   }
 
   /* ---------- commander ---------- */
@@ -912,6 +965,7 @@ footer a{color:inherit}
       if (hasCI && (pk.mode === 'exact' ? c.b !== mask : (c.b & ~mask))) continue;
       if (mv != null && c.cmc > mv) continue;
       if (cassieOn() && !modern.has(c.i)) continue;
+      if (!retroOk(c)) continue;
       if (!st.showIllegal && c.l !== 'legal') { pkHidden++; continue; }
       if (tmask && (themeBits(c) & tmask) !== tmask) continue;
       let ok = true;
@@ -1023,6 +1077,7 @@ footer a{color:inherit}
       const c = nameIdx.get(norm(e.n));
       if (e.sa != null && !saltMap.has(saltKey(e.n))) saltMap.set(saltKey(e.n), e.sa); // scores EDHREC attaches to its own lists
       if (!c || c === sg.c || (cassieOn() && !modern.has(c.i))) continue;
+      if (!retroOk(c)) continue;
       if (!st.showIllegal && c.l !== 'legal') { sg.hidden++; continue; }
       const inc = e.pd ? e.nd / e.pd : null;
       if (base && inc != null) {
@@ -1342,13 +1397,15 @@ footer a{color:inherit}
     el.sort.addEventListener('change', () => { st.sort = el.sort.value; applyFilters(); });
     el.showIllegal.addEventListener('change', () => { st.showIllegal = el.showIllegal.checked; applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false); });
     el.salt.addEventListener('change', () => { st.salt = el.salt.checked; if (st.salt) ensureSalt(); applyFilters(true); });
+    el.retro.addEventListener('change', () => { st.retro = el.retro.value; retroErr = ''; renderRetro(); applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false); });
+    el.retroBtn.addEventListener('click', syncRetro);
     el.cassie.addEventListener('change', () => {
       st.cassie = el.cassie.checked; cassieErr = ''; renderCassie();
       applyFilters(true); renderCmdr(); if (!el.picker.hidden) renderPick();
     });
     el.cassieBtn.addEventListener('click', syncModern);
     el.clear.addEventListener('click', () => {
-      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.showIllegal = false; st.cassie = false; st.salt = false; st.ciMode = 'within';
+      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.showIllegal = false; st.retro = ''; st.cassie = false; st.salt = false; st.ciMode = 'within';
       syncControls(); applyFilters();
     });
     el.catChips.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; st.cats.has(k) ? st.cats.delete(k) : st.cats.add(k); syncControls(); applyFilters(); });
@@ -1448,7 +1505,8 @@ footer a{color:inherit}
   async function boot() {
     await loadDecks();
     try {
-      const [arr, m, mo, sl] = await Promise.all([kvGet('cards'), kvGet('meta'), kvGet('modern'), kvGet('salt')]);
+      const [arr, m, mo, sl, rt] = await Promise.all([kvGet('cards'), kvGet('meta'), kvGet('modern'), kvGet('salt'), kvGet('retro')]);
+      if (rt && rt.rows) { retroMap = new Map(rt.rows); }
       if (sl && sl.rows) addSalt(sl.rows);
       if (mo && mo.rows && mo.v === MODERN_VER) { setModern(mo.rows); renderCassie(); }
       if (arr && arr.length && m) {
