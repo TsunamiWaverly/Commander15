@@ -102,6 +102,12 @@ main{padding-top:12px}
 .detail .big{cursor:zoom-in;width:min(100%,340px);aspect-ratio:488/680;border-radius:12px;background:var(--surface-2);margin-top:12px}
 .full{white-space:pre-line;font-size:.95rem;max-width:62ch}
 .facts{color:var(--muted);font-size:.85rem}
+.versions{width:100%;display:grid;gap:6px;margin-top:4px}
+.versions .vh{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.ver{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:inherit;font:inherit;cursor:pointer}
+.ver.cur{border-color:var(--accent)}
+.ver .vthumb{width:40px;aspect-ratio:488/680;border-radius:4px;background:var(--surface);flex:none;object-fit:cover}
+.ver .vl{flex:1;min-width:0}.ver small{color:var(--muted)}.ver .vn{color:var(--muted);font-size:.78rem}
 .detail a{color:var(--accent);font-weight:600}
 #more,#pickMore{height:1px;margin:0}
 .catnote{font-size:.8rem;color:var(--muted);margin:6px 0 0}
@@ -253,7 +259,7 @@ footer a{color:inherit}
     <label class="check" for="showIllegal"><input id="showIllegal" type="checkbox"> Show cards that are not legal in Commander (banned, silver border, etc.)</label>
     <label class="check" for="salt"><input id="salt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div id="retroField" style="display:grid;gap:8px">
-      <label class="check" for="retro"><input id="retro" type="checkbox"> Retro frame: only cards with a retro-frame printing, listing every such printing (foil first)</label>
+      <label class="check" for="retro"><input id="retro" type="checkbox"> Retro frame: only cards with a retro-frame printing (foil version shown first; tap a card for its other printings)</label>
       <div id="retroBox" hidden>
         <div class="status" id="retroMsg" aria-live="polite"></div>
         <button id="retroBtn" class="btn alt" type="button">Download retro-frame printings</button>
@@ -811,12 +817,17 @@ footer a{color:inherit}
     if (st.salt) view.sort((a, b) => saltSort(a, b) || (a.nm < b.nm ? -1 : 1));
     if (retroActive()) {
       const out = [];
-      for (const c of view) for (const p of (retroPrints.get(c.i) || [])) { const o = Object.create(c); o._p = p; out.push(o); }
-      if (!st.salt) out.sort((a, b) => (b._p.f ? 1 : 0) - (a._p.f ? 1 : 0)); // stable: foil printings first, the chosen order kept within each group
+      for (const c of view) {
+        const all = retroPrints.get(c.i) || []; if (!all.length) continue;
+        let best = null; // shown printing: the newest foil one if the card has a foil retro printing, else the newest
+        for (const p of all) if (!best || (p.f && !best.f) || (p.f === best.f && p.y >= best.y)) best = p;
+        const o = Object.create(c); o._p = best; o._all = all; out.push(o);
+      }
+      if (!st.salt) out.sort((a, b) => (b._p.f ? 1 : 0) - (a._p.f ? 1 : 0)); // stable: cards with a foil first, the chosen order kept within each group
       view = out;
     }
     const active = terms.length || hasCI || mv != null || types.length || legendary || st.retro || !st.showIllegal || st.cats.size || cassie || st.salt;
-    el.count.textContent = retroActive() ? fmt(view.length) + ' retro-frame printings' : fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
+    el.count.textContent = retroActive() ? fmt(view.length) + ' cards with retro-frame printings' : fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
     el.clear.hidden = !(active);
     el.empty.hidden = view.length > 0 || !cards.length;
     renderList(true);
@@ -833,12 +844,21 @@ footer a{color:inherit}
       '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(p.s.toUpperCase()) + ' ' + esc(p.y) + '</span>' + (c._p ? (p.f ? '<span class="flag foil">Foil</span>' : '<span>Nonfoil only</span>') : '') + (saltTxt(c) ? '<span>' + saltTxt(c) + '</span>' : '') + flag + '</span></span></button>' + addBtn(c) + '</div></li>';
   }
   const printLabel = (c, p) => (c._p ? 'Retro-frame printing ' + (p.sn ? p.sn + ' ' : '') + '(' + p.s.toUpperCase() + ') ' + p.y + (p.f ? ', foil available' : ', nonfoil only') : (cassieOn() && p !== c ? 'Printing ' : 'First printed ') + p.s.toUpperCase() + ' ' + p.y);
+  // Retro-frame mode: every retro printing of the card, nested under it. Tap one to see it full size.
+  function versionsHtml(c) {
+    if (!c._all) return '';
+    return '<div class="versions"><div class="vh">All retro-frame printings (' + c._all.length + ')</div>' +
+      c._all.map((v, i) => '<button class="ver' + (v === c._p ? ' cur' : '') + '" type="button" data-vp="' + i + '">' +
+        (v.im ? '<img class="vthumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(v.im) + '">' : '<span class="vthumb"></span>') +
+        '<span class="vl">' + esc(v.sn || v.s.toUpperCase()) + ' <small>' + esc(v.s.toUpperCase()) + ' ' + esc(v.y) + '</small></span>' +
+        (v.f ? '<span class="flag foil">Foil</span>' : '<span class="vn">Nonfoil only</span>') + '</button>').join('') + '</div>';
+  }
   function detailHtml(c) {
     const p = pr(c);
     return '<div class="detail">' + (p.im ? '<img class="big" alt="' + esc(c.n) + '" src="' + IMG_BASE + 'normal/' + esc(p.im) + '">' : '') +
       '<div class="full">' + syms(c.o || 'No rules text.') + '</div>' +
       '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, printLabel(c, p), saltTxt(c), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).map(esc).join(' · ') + '</div>' +
-      (p.u ? '<a href="' + esc(p.u) + '" target="_blank" rel="noopener">View on Scryfall</a>' : '') + '</div>';
+      (p.u ? '<a href="' + esc(p.u) + '" target="_blank" rel="noopener">View on Scryfall</a>' : '') + versionsHtml(c) + '</div>';
   }
   const rowCard = li => (li.dataset.vi !== '' && view[+li.dataset.vi]) || cards[+li.dataset.x];
   function renderList(reset) {
@@ -910,7 +930,7 @@ footer a{color:inherit}
       big.src = IMG_BASE + 'large/' + p.im;
     } else el.vwImg.removeAttribute('src');
     el.vwText.innerHTML = '<b>' + esc(c.n) + '</b> ' + syms(c.mc || '') + '\n' + esc(c.t) + (c.pt ? '  ' + esc(c.pt) : '') + '\n\n' + syms(c.o || 'No rules text.');
-    el.vwFacts.textContent = ['Mana value ' + c.cmc, printLabel(c, p), saltTxt(c), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].join(' · ');
+    el.vwFacts.textContent = ['Mana value ' + c.cmc, printLabel(c, p), saltTxt(c), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).join(' · ');
     el.vwLink.hidden = !p.u; if (p.u) el.vwLink.href = p.u;
     el.viewer.hidden = false; document.body.style.overflow = 'hidden';
   }
@@ -1433,6 +1453,11 @@ footer a{color:inherit}
     el.results.addEventListener('click', e => {
       const ab = e.target.closest('.add');
       if (ab) { toggleCard(cards[+ab.closest('.card').dataset.x]); return; }
+      const vb = e.target.closest('[data-vp]');
+      if (vb) { // a nested printing: open that one full size
+        const li = vb.closest('.card'), base = rowCard(li), o = Object.create(cards[+li.dataset.x]);
+        o._p = base._all[+vb.dataset.vp]; o._all = base._all; openViewer(o); return;
+      }
       const pic = e.target.closest('.thumb, .big');
       if (pic) { openViewer(rowCard(pic.closest('.card'))); return; }
       const row = e.target.closest('.row'); if (!row) return;

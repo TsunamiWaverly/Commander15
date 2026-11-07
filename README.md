@@ -97,6 +97,6 @@ Cards that are not legal in Commander (banned, silver border, conspiracies and s
 
 ## Retro frame filter
 
-In Filters, tick "Retro frame" to show only cards that have a retro-frame printing, listed as one row per retro printing (with that printing's image, set and year), cards with a foil version first. It needs a one-time download of those printings (a few minutes, kept on the device) and also limits the commander picker and Ideas to cards with a retro-frame printing.
+In Filters, tick "Retro frame" to show only cards that have a retro-frame printing. Each card appears once, shown with its foil retro printing if it has one (otherwise its newest). Cards with a foil version come first. Tap a card to see every retro-frame printing nested under it (set, year, foil or nonfoil); tap one to view it full size. It needs a one-time download of those printings (a few minutes, kept on the device) and also limits the commander picker and Ideas to cards with a retro-frame printing.
 
 The download searches Scryfall for `frame:retro`. If Scryfall does not accept that keyword, the app automatically tries `is:retro` and then `(frame:1993 or frame:1997)`.
