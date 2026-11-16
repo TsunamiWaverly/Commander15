@@ -100,3 +100,14 @@ Cards that are not legal in Commander (banned, silver border, conspiracies and s
 In Filters, tick "Retro frame" to show only cards that have a retro-frame printing. Each card appears once, shown with its foil retro printing if it has one (otherwise its newest). Cards with a foil version come first. Tap a card to see every retro-frame printing nested under it (set, year, foil or nonfoil); tap one to view it full size. It needs a one-time download of those printings (a few minutes, kept on the device) and also limits the commander picker and Ideas to cards with a retro-frame printing.
 
 The download searches Scryfall for `frame:retro`. If Scryfall does not accept that keyword, the app automatically tries `is:retro` and then `(frame:1993 or frame:1997)`.
+
+## Owned checklist and buying the rest
+
+In the deck sheet every card (and the commander) has an "Own" button. Tap it to mark a card as one you already have; for a card you run several copies of it counts up ("Own 2/4") and wraps back to zero. The sheet shows how many cards you have and how many are left to buy, plus "Mark all owned" and "Clear owned". What you own is saved with each deck on this device.
+
+"Buy the rest…" lists only the cards you do not own (any printing) and offers:
+- TCGplayer: opens Mass Entry with the list filled in (and copies it). Review the matches there and tap Add to Cart.
+- Mana Pool: copies the list and opens their import page (manapool.com/add-deck); paste it there and add the matches to your cart.
+- Copy list: copies the lines to paste anywhere.
+
+Neither store lets a web page fill a cart for you, so the last tap (Add to Cart) is yours.
