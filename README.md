@@ -117,3 +117,5 @@ Neither store lets a web page fill a cart for you, so the last tap (Add to Cart)
 Under each card name in the deck sheet is a "Any printing ▾" button (commander included). Tap it to load that card's printings from Scryfall (set, number, year, picture) and pick one, with Nonfoil or Foil where it exists. "Any printing" clears the choice. The choice is saved with the deck.
 
 "Buy the rest…" carries the picks across: TCGplayer gets lines like `1 Sol Ring [C21] 263`, and the copied/Mana Pool list uses `1 Sol Ring (C21) 263 *F*` (the `*F*` marks foil). A "Use the printings I picked" tick box lets you fall back to plain card names if a store does not recognise a set code. TCGplayer Mass Entry has no foil field, so choose foil on its listings after the list opens.
+
+A printing you pick for a deck card is also the one shown everywhere that card appears (lists, the full-size viewer, its Scryfall link), with a note saying it is the printing picked for your deck.

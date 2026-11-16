@@ -509,7 +509,12 @@ footer a{color:inherit}
   const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', showIllegal:false, cats:new Set(), retro:false, cassie:false, salt:false, cmdr:'' };
   let modern = new Map(); // oracle id -> {im, s, y, u}: the earliest printing on or after M15 (Cassie mode)
   const cassieOn = () => st.cassie && modern.size > 0;
-  const pr = c => c._p || (st.cassie && modern.get(c.i)) || c; // the printing to display
+  // the printing to display: a retro-mode row's own printing, else the one picked for the deck, else Cassie's, else the oldest
+  const deckPrint = c => {
+    const q = typeof active === 'function' && decks.length ? active().prints : null, p = q && q[c.i];
+    return p ? { im: p.im, s: p.s, y: p.y, sn: p.sn, f: !!p.foil, u: 'https://scryfall.com/card/' + p.s + '/' + p.cn, _d: true } : null;
+  };
+  const pr = c => c._p || deckPrint(c) || (st.cassie && modern.get(c.i)) || c; // the printing to display
   let catCounts = {};
   let cmdrCard = null; // the chosen commander's record, or null
   let decks = [], activeId = '';       // saved decks: {id, name, cmdr, cards:{oracleId:qty}}
@@ -888,7 +893,7 @@ footer a{color:inherit}
       (c.o ? '<span class="text">' + syms(c.o) + '</span>' : '') +
       '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(p.s.toUpperCase()) + ' ' + esc(p.y) + '</span>' + (c._p ? (p.f ? '<span class="flag foil">Foil</span>' : '<span>Nonfoil only</span>') : '') + (saltTxt(c) ? '<span>' + saltTxt(c) + '</span>' : '') + flag + '</span></span></button>' + addBtn(c) + '</div></li>';
   }
-  const printLabel = (c, p) => (c._p ? 'Retro-frame printing ' + (p.sn ? p.sn + ' ' : '') + '(' + p.s.toUpperCase() + ') ' + p.y + (p.f ? ', foil available' : ', nonfoil only') : (cassieOn() && p !== c ? 'Printing ' : 'First printed ') + p.s.toUpperCase() + ' ' + p.y);
+  const printLabel = (c, p) => (p._d ? 'Printing picked for your deck: ' + (p.sn ? p.sn + ' ' : '') + '(' + p.s.toUpperCase() + ') ' + p.y + (p.f ? ', foil' : '') : c._p ? 'Retro-frame printing ' + (p.sn ? p.sn + ' ' : '') + '(' + p.s.toUpperCase() + ') ' + p.y + (p.f ? ', foil available' : ', nonfoil only') : (cassieOn() && p !== c ? 'Printing ' : 'First printed ') + p.s.toUpperCase() + ' ' + p.y);
   // Retro-frame mode: every retro printing of the card, nested under it. Tap one to see it full size.
   function versionsHtml(c) {
     if (!c._all) return '';
