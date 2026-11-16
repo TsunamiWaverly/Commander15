@@ -194,6 +194,13 @@ footer a{color:inherit}
 .qc{display:flex;align-items:center;gap:2px;flex:none}
 .ownbar{display:grid;gap:8px;margin:8px 0 4px}
 .ownbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#prAny.on{outline:2px solid var(--accent)}
+.prbtn{display:block;font-size:.74rem;color:var(--muted);margin-top:1px}
+.prrow{align-items:flex-start}
+.prrow .sthumb{width:56px}
+.prrow .pfin{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.prrow .pfin button{border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:999px;padding:6px 12px;font:inherit;font-size:.8rem;font-weight:600;min-height:34px}
+.prrow .pfin button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .own{flex:none;min-width:58px;height:34px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2);color:var(--muted);font:inherit;font-size:.78rem;font-weight:700;padding:0 10px}
 .own.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .own.part{border-color:var(--accent);color:var(--accent)}
@@ -326,6 +333,7 @@ footer a{color:inherit}
       </div>
       <div id="buyBox" hidden>
         <p class="status" id="buyInfo"></p>
+        <label class="check" for="buyUseP" id="buyUsePWrap"><input id="buyUseP" type="checkbox" checked> Use the printings I picked</label>
         <div class="ownbtns">
           <button id="buyTcg" class="btn alt" type="button">TCGplayer</button>
           <button id="buyMp" class="btn alt" type="button">Mana Pool</button>
@@ -390,6 +398,18 @@ footer a{color:inherit}
   </div>
   <ul id="pickList"></ul>
   <div id="pickMore" aria-hidden="true" hidden></div>
+</div>
+
+<div id="prSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Choose a printing" hidden>
+  <div class="sheet-bar">
+    <h2 class="sg-title" id="prTitle">Printing</h2>
+    <button id="prClose" class="ghost" type="button">Close</button>
+  </div>
+  <div class="sg-scroll">
+    <p class="status" id="prMsg" aria-live="polite"></p>
+    <button id="prAny" class="btn alt" type="button">Any printing (cheapest available)</button>
+    <ul id="prList" class="sg-list"></ul>
+  </div>
 </div>
 
 <div id="sugg" class="sheet" role="dialog" aria-modal="true" aria-label="Suggestions from EDHREC" hidden>
@@ -477,6 +497,7 @@ footer a{color:inherit}
     deckBtn:$('deckBtn'), deckCount:$('deckCount'), deckSheet:$('deckSheet'), deckSel:$('deckSel'), deckNew:$('deckNew'), deckClose:$('deckClose'),
     deckName:$('deckName'), deckCmdrName:$('deckCmdrName'), deckCmdrCI:$('deckCmdrCI'), deckCmdrBtn:$('deckCmdrBtn'),
     deckSumText:$('deckSumText'), deckFill:$('deckFill'), deckIssues:$('deckIssues'), curve:$('curve'), deckList:$('deckList'),
+    prSheet:$('prSheet'), prTitle:$('prTitle'), prClose:$('prClose'), prMsg:$('prMsg'), prAny:$('prAny'), prList:$('prList'), buyUseP:$('buyUseP'), buyUsePWrap:$('buyUsePWrap'),
     ownSum:$('ownSum'), ownAll:$('ownAll'), ownNone:$('ownNone'), buyBtn:$('buyBtn'), buyBox:$('buyBox'), buyInfo:$('buyInfo'), buyTcg:$('buyTcg'), buyMp:$('buyMp'), buyCopy:$('buyCopy'), buyMsg:$('buyMsg'),
     ioText:$('ioText'), ioCopy:$('ioCopy'), ioShare:$('ioShare'), ioImport:$('ioImport'), deckDel:$('deckDel'), ioMsg:$('ioMsg'), toast:$('toast')
   };
@@ -1328,7 +1349,67 @@ footer a{color:inherit}
     afterDeckChange();
   }
   const frontName = c => c.n.split(' // ')[0];
-  function buyLines() { return deckNeeds().filter(e => e.need > 0).map(e => e.need + ' ' + frontName(e.c)); }
+  // style 'tcg': TCGplayer Mass Entry ("2 Name [SET] 123"); 'mp': Moxfield style ("2 Name (SET) 123 *F*", also what Mana Pool reads)
+  function buyLines(style) {
+    const d = active(), useP = !el.buyUseP || el.buyUseP.checked;
+    return deckNeeds().filter(e => e.need > 0).map(e => {
+      const p = useP && d.prints && d.prints[e.c.i], base = e.need + ' ' + frontName(e.c);
+      if (!p || !p.s || !p.cn) return base;
+      return style === 'tcg' ? base + ' [' + p.s.toUpperCase() + '] ' + p.cn : base + ' (' + p.s.toUpperCase() + ') ' + p.cn + (p.foil ? ' *F*' : '');
+    });
+  }
+  /* ---------- choosing a printing for a deck card ---------- */
+  // The app only stores each card's oldest printing, so the full list is fetched from Scryfall when you ask for it.
+  const printCache = new Map();
+  let prCur = null;
+  const printLbl = p => p ? (p.s.toUpperCase() + ' #' + p.cn + (p.foil ? ' · Foil' : '')) : 'Any printing';
+  async function loadPrints(c) {
+    if (printCache.has(c.i)) return printCache.get(c.i);
+    const out = []; let url = API + '/cards/search?q=' + encodeURIComponent('oracleid:' + c.i + ' game:paper') + '&unique=prints&order=released&dir=asc', pages = 0;
+    while (url && pages++ < 4) { // basic lands have hundreds; four pages (700) is plenty to pick from
+      const res = await fetchJson(url);
+      for (const x of res.data) {
+        const m = slim(x);
+        out.push({ id: x.id, s: x.set, cn: x.collector_number || '', sn: x.set_name || x.set, y: m.y, im: m.im, fin: x.finishes || ['nonfoil'] });
+      }
+      url = res.has_more ? res.next_page : null;
+    }
+    printCache.set(c.i, out); return out;
+  }
+  function renderPrints() {
+    const d = active(), cur = d.prints && d.prints[prCur.c.i];
+    el.prAny.classList.toggle('on', !cur);
+    el.prList.innerHTML = prCur.list.map((p, i) => {
+      const sel = cur && cur.id === p.id;
+      const btn = (f, label) => '<button type="button" data-pi="' + i + '" data-foil="' + f + '" aria-pressed="' + (!!sel && cur.foil === (f === '1')) + '">' + label + '</button>';
+      const hasN = p.fin.includes('nonfoil'), hasF = p.fin.includes('foil') || p.fin.includes('etched');
+      return '<li class="sg-row prrow"><img class="sthumb" loading="lazy" alt="" src="' + (p.im ? IMG_BASE + 'small/' + esc(p.im) : '') + '">' +
+        '<span class="sg-body"><span class="name">' + esc(p.sn) + '</span><span class="sg-stats">' + esc(p.s.toUpperCase()) + ' #' + esc(p.cn) + ' · ' + esc(p.y) + '</span>' +
+        '<span class="pfin">' + (hasN ? btn('0', 'Nonfoil') : '') + (hasF ? btn('1', 'Foil') : '') + '</span></span></li>';
+    }).join('');
+  }
+  async function openPrints(oid) {
+    const c = idx.get(oid); if (!c) return;
+    prCur = { c, list: [] };
+    el.prTitle.textContent = c.n; el.prMsg.textContent = 'Loading printings from Scryfall…'; el.prList.innerHTML = '';
+    el.prSheet.hidden = false; document.body.style.overflow = 'hidden';
+    try {
+      const list = await loadPrints(c);
+      if (!prCur || prCur.c !== c) return;
+      prCur.list = list;
+      el.prMsg.textContent = list.length ? list.length + ' printings. Pick one and whether you want foil; it carries into “Buy the rest”.' : 'No printings found.';
+      renderPrints();
+    } catch (e) { el.prMsg.textContent = 'Could not load printings (' + (e && e.message ? e.message : 'network error') + '). Try again in a moment.'; }
+  }
+  function closePrints() { el.prSheet.hidden = true; prCur = null; document.body.style.overflow = el.deckSheet.hidden ? '' : 'hidden'; }
+  function pickPrint(i, foil) {
+    if (!prCur) return;
+    const p = prCur.list[i]; if (!p) return;
+    const d = active(); d.prints = d.prints || {};
+    d.prints[prCur.c.i] = { id: p.id, s: p.s, cn: p.cn, sn: p.sn, y: p.y, im: p.im, foil: !!foil };
+    renderPrints(); afterDeckChange();
+  }
+  function clearPrint() { if (!prCur) return; const d = active(); if (d.prints) delete d.prints[prCur.c.i]; renderPrints(); afterDeckChange(); }
   const TCG_URL = 'https://www.tcgplayer.com/massentry?productline=Magic&c=';
   const MP_URL = 'https://manapool.com/add-deck';
   function renderOwn() {
@@ -1339,16 +1420,17 @@ footer a{color:inherit}
   }
   async function copyText(t) { try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; } }
   function openBuy() {
-    const lines = buyLines();
+    const lines = buyLines('mp');
+    el.buyUsePWrap.hidden = !deckNeeds().some(e => e.need > 0 && (active().prints || {})[e.c.i]);
     if (!lines.length) { toast('Nothing left to buy'); return; }
-    el.buyInfo.textContent = lines.length + ' cards (' + lines.reduce((n, l) => n + parseInt(l, 10), 0) + ' copies) not marked as owned. Any printing, so the cheapest is picked. Neither store lets a page fill your cart for you: the list opens ready to add, and you tap Add to cart there.';
+    el.buyInfo.textContent = lines.length + ' cards (' + lines.reduce((n, l) => n + parseInt(l, 10), 0) + ' copies) not marked as owned. Cards with no printing picked can be any printing, so the cheapest is chosen. Neither store lets a page fill your cart for you: the list opens ready to add, and you tap Add to cart there.';
     el.buyMsg.textContent = ''; el.buyBox.hidden = !el.buyBox.hidden;
   }
   async function buyAt(store) {
     const lines = buyLines(); if (!lines.length) return;
-    const text = lines.join('\n'), copied = await copyText(text);
+    const lines2 = buyLines(store === 'tcg' ? 'tcg' : 'mp'), text = lines2.join('\n'), copied = await copyText(text);
     if (store === 'tcg') {
-      window.open(TCG_URL + encodeURIComponent(lines.join('||')), '_blank', 'noopener');
+      window.open(TCG_URL + encodeURIComponent(lines2.join('||')), '_blank', 'noopener');
       el.buyMsg.textContent = 'Opened TCGplayer Mass Entry with your list' + (copied ? ' (also copied). ' : '. ') + 'Check the matches there, then tap Add to Cart.';
     } else {
       window.open(MP_URL, '_blank', 'noopener');
@@ -1396,6 +1478,10 @@ footer a{color:inherit}
     if (gone) out.push(gone + ' saved card' + (gone === 1 ? ' is' : 's are') + ' no longer in the card list.');
     return out;
   }
+  function printBtn(oid) {
+    const p = (active().prints || {})[oid];
+    return '<button class="linkbtn prbtn" type="button" data-pr="' + esc(oid) + '">' + esc(printLbl(p)) + ' ▾</button>';
+  }
   function ownBtn(oid, have, q) {
     const cls = have >= q ? ' on' : have > 0 ? ' part' : '';
     return '<button class="own' + cls + '" type="button" data-own="' + esc(oid) + '" aria-pressed="' + (have >= q) + '" aria-label="Copies you own: ' + have + ' of ' + q + '">' + (q > 1 ? 'Own ' + have + '/' + q : have ? '✓ Own' : 'Own') + '</button>';
@@ -1406,7 +1492,7 @@ footer a{color:inherit}
       ? '<button class="qb" type="button" data-act="dec" data-i="' + i + '" aria-label="Remove one ' + n + '">−</button><span class="qn">' + e.q + '</span><button class="qb" type="button" data-act="inc" data-i="' + i + '" aria-label="Add one ' + n + '">+</button>'
       : '<button class="qb" type="button" data-act="rm" data-i="' + i + '" aria-label="Remove ' + n + '">✕</button>';
     const warn = c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>';
-    return '<li class="drow' + (e.have >= e.q ? ' have' : '') + '"><span class="dn"><button class="linkbtn" type="button" data-v="' + i + '">' + n + '</button>' + warn + '</span><span class="cost">' + syms(c.mc) + '</span>' + ownBtn(c.i, e.have, e.q) + '<span class="qc">' + ctl + '</span></li>';
+    return '<li class="drow' + (e.have >= e.q ? ' have' : '') + '"><span class="dn"><button class="linkbtn" type="button" data-v="' + i + '">' + n + '</button>' + warn + printBtn(c.i) + '</span><span class="cost">' + syms(c.mc) + '</span>' + ownBtn(c.i, e.have, e.q) + '<span class="qc">' + ctl + '</span></li>';
   }
   function renderDeck() {
     const d = active(), total = deckTotal();
@@ -1433,7 +1519,7 @@ footer a{color:inherit}
     const by = {};
     for (const e of entries) { const g = groupOf(e.c); (by[g] = by[g] || []).push(e); }
     let html = '';
-    if (cmdrCard) { const hv = Math.min(1, own[cmdrCard.i] || 0); html += '<h3 class="gh">Commander<span>1</span></h3><ul class="dl"><li class="drow' + (hv ? ' have' : '') + '"><span class="dn"><button class="linkbtn" type="button" data-v="' + esc(cmdrCard.i) + '">' + esc(cmdrCard.n) + '</button></span><span class="cost">' + syms(cmdrCard.mc) + '</span>' + ownBtn(cmdrCard.i, hv, 1) + '</li></ul>'; }
+    if (cmdrCard) { const hv = Math.min(1, own[cmdrCard.i] || 0); html += '<h3 class="gh">Commander<span>1</span></h3><ul class="dl"><li class="drow' + (hv ? ' have' : '') + '"><span class="dn"><button class="linkbtn" type="button" data-v="' + esc(cmdrCard.i) + '">' + esc(cmdrCard.n) + '</button>' + printBtn(cmdrCard.i) + '</span><span class="cost">' + syms(cmdrCard.mc) + '</span>' + ownBtn(cmdrCard.i, hv, 1) + '</li></ul>'; }
     for (const g of GROUPS) {
       const list = by[g]; if (!list) continue;
       list.sort((a, b) => a.c.cmc - b.c.cmc || (a.c.nm < b.c.nm ? -1 : 1));
@@ -1590,7 +1676,7 @@ footer a{color:inherit}
     el.sgList.addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (b) toggleCard(cards[+b.dataset.sa]); });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      if (!el.viewer.hidden) closeViewer(); else if (!el.sugg.hidden) closeSugg(); else if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
+      if (!el.viewer.hidden) closeViewer(); else if (!el.prSheet.hidden) closePrints(); else if (!el.sugg.hidden) closeSugg(); else if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
     });
     el.deckBtn.addEventListener('click', openDeck);
     el.deckClose.addEventListener('click', closeDeck);
@@ -1605,16 +1691,20 @@ footer a{color:inherit}
     });
     el.deckList.addEventListener('click', e => {
       const ob = e.target.closest('[data-own]'); if (ob) { cycleOwn(ob.dataset.own); return; }
+      const pb = e.target.closest('[data-pr]'); if (pb) { openPrints(pb.dataset.pr); return; }
       const b = e.target.closest('[data-act]'); if (!b) return;
       const id = b.dataset.i, q = qtyOf(id);
       setQty(id, b.dataset.act === 'inc' ? q + 1 : b.dataset.act === 'dec' ? q - 1 : 0);
     });
+    el.prClose.addEventListener('click', closePrints);
+    el.prAny.addEventListener('click', clearPrint);
+    el.prList.addEventListener('click', e => { const b = e.target.closest('[data-pi]'); if (b) pickPrint(+b.dataset.pi, b.dataset.foil === '1'); });
     el.ownAll.addEventListener('click', () => setAllOwned(true));
     el.ownNone.addEventListener('click', () => setAllOwned(false));
     el.buyBtn.addEventListener('click', openBuy);
     el.buyTcg.addEventListener('click', () => buyAt('tcg'));
     el.buyMp.addEventListener('click', () => buyAt('mp'));
-    el.buyCopy.addEventListener('click', async () => { el.buyMsg.textContent = (await copyText(buyLines().join('\n'))) ? 'Copied ' + buyLines().length + ' lines.' : 'Could not copy; use Export under “Import, export or delete”.'; });
+    el.buyCopy.addEventListener('click', async () => { el.buyMsg.textContent = (await copyText(buyLines('mp').join('\n'))) ? 'Copied ' + buyLines('mp').length + ' lines.' : 'Could not copy; use Export under “Import, export or delete”.'; });
     el.ioCopy.addEventListener('click', async () => {
       const t = exportText(); el.ioText.value = t;
       try { await navigator.clipboard.writeText(t); el.ioMsg.textContent = 'Copied ' + deckTotal() + ' cards.'; }
