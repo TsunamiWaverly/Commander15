@@ -173,6 +173,11 @@ footer a{color:inherit}
 .credit a{color:inherit}
 .barbtns{display:flex;gap:8px}
 .barbtns b{font-variant-numeric:tabular-nums}
+.mb,.sg-mb{flex:none;border:0;background:none;color:var(--muted);font-size:1.15rem;line-height:1}
+.mb{width:44px;border-left:1px solid var(--line)}
+.sg-mb{width:40px;height:44px}
+.mb.on,.sg-mb.on{color:var(--accent);font-weight:700}
+.mv{flex:none;border:1px solid var(--line);border-radius:8px;background:none;color:var(--accent);font:600 .8rem var(--sans);padding:8px 10px}
 .add{flex:none;width:52px;border:0;border-left:1px solid var(--line);background:none;font-size:1.4rem;font-weight:700;color:var(--accent)}
 .add.on{background:var(--accent);color:var(--accent-fg)}
 .deck-scroll{overflow:auto;flex:1;display:grid;gap:12px;align-content:start;padding-bottom:max(28px,env(safe-area-inset-bottom,0px))}
@@ -270,7 +275,6 @@ footer a{color:inherit}
       <p class="catnote" id="catNote" hidden>Silver border and other categories need a fresh download: tap Update cards.</p>
     </div>
     <label class="check" for="showIllegal"><input id="showIllegal" type="checkbox"> Show cards that are not legal in Commander (banned, silver border, etc.)</label>
-    <label class="check" for="salt"><input id="salt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div id="retroField" style="display:grid;gap:8px">
       <label class="check" for="retro"><input id="retro" type="checkbox"> Retro frame: only cards with a retro-frame printing (foil version shown first; tap a card for its other printings)</label>
       <div id="retroBox" hidden>
@@ -336,6 +340,7 @@ footer a{color:inherit}
         <label class="check" for="buyUseP" id="buyUsePWrap"><input id="buyUseP" type="checkbox" checked> Use the printings I picked</label>
         <div class="ownbtns">
           <button id="buyTcg" class="btn alt" type="button">TCGplayer</button>
+          <button id="buyTcgPaste" class="btn alt" type="button">TCGplayer (paste)</button>
           <button id="buyMp" class="btn alt" type="button">Mana Pool</button>
           <button id="buyCopy" class="ghost" type="button">Copy list</button>
         </div>
@@ -393,7 +398,6 @@ footer a{color:inherit}
       <div class="field"><label for="pickSort">Sort by</label>
         <select id="pickSort"><option value="name">Name</option><option value="pop">EDHREC popularity</option><option value="cmc">Mana value</option></select></div>
     </div>
-    <label class="check" for="pickSalt"><input id="pickSalt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div><button id="pickReset" class="ghost" type="button">Reset refinements</button></div>
   </div>
   <ul id="pickList"></ul>
@@ -425,7 +429,6 @@ footer a{color:inherit}
     </div>
     <div class="field"><span class="lab">EDHREC themes</span><div id="sgTags" class="chips" style="margin-top:0"></div></div>
     <div class="field" id="sgCatField" hidden><span class="lab">EDHREC categories</span><div id="sgCats" class="chips" style="margin-top:0"></div></div>
-    <label class="check" for="sgSalt"><input id="sgSalt" type="checkbox"> Minimize salt: lowest EDHREC salt score first</label>
     <div class="field"><label for="sgSort">Sort by</label>
       <select id="sgSort"><option value="syn">Synergy</option><option value="pop">Popularity</option></select></div>
     <div id="sgMsg" class="status" aria-live="polite"></div>
@@ -486,7 +489,7 @@ footer a{color:inherit}
     q:$('q'), results:$('results'), more:$('more'), summary:$('summary'), count:$('count'), clear:$('clear'), empty:$('empty'),
     syncPanel:$('syncPanel'), syncTitle:$('syncTitle'), syncText:$('syncText'), syncBtn:$('syncBtn'), progress:$('progress'),
     fill:$('fill'), status:$('status'), err:$('err'), dataBtn:$('dataBtn'), filtersBtn:$('filtersBtn'), filters:$('filters'),
-    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), showIllegal:$('showIllegal'), catChips:$('catChips'), cassie:$('cassie'), retro:$('retro'), retroBox:$('retroBox'), retroMsg:$('retroMsg'), retroBtn:$('retroBtn'), salt:$('salt'), pickSalt:$('pickSalt'), sgSalt:$('sgSalt'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
+    ciChips:$('ciChips'), ciMode:$('ciMode'), typeChips:$('typeChips'), mv:$('mv'), sort:$('sort'), showIllegal:$('showIllegal'), catChips:$('catChips'), cassie:$('cassie'), retro:$('retro'), retroBox:$('retroBox'), retroMsg:$('retroMsg'), retroBtn:$('retroBtn'), cassieBox:$('cassieBox'), cassieMsg:$('cassieMsg'), cassieBtn:$('cassieBtn'), catNote:$('catNote'), pickMore:$('pickMore'),
     cmdrSet:$('cmdrSet'), cmdrInfo:$('cmdrInfo'), cmdrImg:$('cmdrImg'), cmdrName:$('cmdrName'), cmdrSub:$('cmdrSub'),
     cmdrChange:$('cmdrChange'), cmdrClear:$('cmdrClear'), ciField:$('ciField'),
     picker:$('picker'), pickQ:$('pickQ'), pickClose:$('pickClose'), pickHint:$('pickHint'), pickList:$('pickList'),
@@ -498,7 +501,7 @@ footer a{color:inherit}
     deckName:$('deckName'), deckCmdrName:$('deckCmdrName'), deckCmdrCI:$('deckCmdrCI'), deckCmdrBtn:$('deckCmdrBtn'),
     deckSumText:$('deckSumText'), deckFill:$('deckFill'), deckIssues:$('deckIssues'), curve:$('curve'), deckList:$('deckList'),
     prSheet:$('prSheet'), prTitle:$('prTitle'), prClose:$('prClose'), prMsg:$('prMsg'), prAny:$('prAny'), prList:$('prList'), buyUseP:$('buyUseP'), buyUsePWrap:$('buyUsePWrap'),
-    ownSum:$('ownSum'), ownAll:$('ownAll'), ownNone:$('ownNone'), buyBtn:$('buyBtn'), buyBox:$('buyBox'), buyInfo:$('buyInfo'), buyTcg:$('buyTcg'), buyMp:$('buyMp'), buyCopy:$('buyCopy'), buyMsg:$('buyMsg'),
+    ownSum:$('ownSum'), ownAll:$('ownAll'), ownNone:$('ownNone'), buyBtn:$('buyBtn'), buyBox:$('buyBox'), buyInfo:$('buyInfo'), buyTcg:$('buyTcg'), buyTcgPaste:$('buyTcgPaste'), buyMp:$('buyMp'), buyCopy:$('buyCopy'), buyMsg:$('buyMsg'),
     ioText:$('ioText'), ioCopy:$('ioCopy'), ioShare:$('ioShare'), ioImport:$('ioImport'), deckDel:$('deckDel'), ioMsg:$('ioMsg'), toast:$('toast')
   };
 
@@ -506,7 +509,7 @@ footer a{color:inherit}
   let view = [];      // filtered + sorted
   let shown = 0;
   let meta = null;    // {syncedAt, count}
-  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', showIllegal:false, cats:new Set(), retro:false, cassie:false, salt:false, cmdr:'' };
+  const st = { ci:new Set(), ciMode:'within', types:new Set(), mv:'', sort:'name', showIllegal:false, cats:new Set(), retro:false, cassie:false, cmdr:'' };
   let modern = new Map(); // oracle id -> {im, s, y, u}: the earliest printing on or after M15 (Cassie mode)
   const cassieOn = () => st.cassie && modern.size > 0;
   // the printing to display: a retro-mode row's own printing, else the one picked for the deck, else Cassie's, else the oldest
@@ -666,49 +669,6 @@ footer a{color:inherit}
       syncing = false; el.syncBtn.disabled = false;
     }
   }
-  /* ---------- salt scores (EDHREC, 0 = least salty to 4 = most) ---------- */
-  // Scores are collected from EDHREC's top-salt page and from any score present in a commander's page.
-  // A card with no score is shown as "Salt —" and sorts as if it were 0, since EDHREC publishes scores for the salty end first.
-  const SALT_URL = 'https://json.edhrec.com/pages/top/salt.json';
-  let saltMap = new Map(), saltBusy = null;
-  const saltKey = n => norm(String(n).split(' // ')[0]);
-  const saltOf = c => { const v = saltMap.get(saltKey(c.n)); return v == null ? null : v; };
-  const saltTxt = c => { if (!saltMap.size) return ''; const v = saltOf(c); return v == null ? 'Salt —' : 'Salt ' + v.toFixed(2); };
-  const saltSort = (a, b) => (saltOf(a) || 0) - (saltOf(b) || 0);
-  function saltFromJson(j) { // tolerant: any object with a name and a numeric salt (field "salt" or a "Salt ... n" label)
-    const out = [], seen = new Set();
-    (function walk(o, d) {
-      if (!o || typeof o !== 'object' || d > 8 || seen.has(o)) return; seen.add(o);
-      if (Array.isArray(o)) { o.forEach(x => walk(x, d + 1)); return; }
-      if (typeof o.name === 'string') {
-        let v = typeof o.salt === 'number' ? o.salt : null;
-        if (v == null && typeof o.label === 'string' && /salt/i.test(o.label)) { const m = o.label.match(/-?\d+(?:\.\d+)?/); if (m) v = parseFloat(m[0]); }
-        if (v != null && isFinite(v)) out.push([saltKey(o.name), v]);
-      }
-      for (const k in o) walk(o[k], d + 1);
-    })(j, 0);
-    return out;
-  }
-  function addSalt(rows) { let n = 0; for (const [k, v] of rows) { if (!saltMap.has(k)) n++; saltMap.set(k, v); } return n; }
-  async function ensureSalt() {
-    if (saltMap.size || saltBusy) return saltBusy;
-    saltBusy = (async () => {
-      try {
-        toast('Loading EDHREC salt scores…');
-        const r = await fetch(SALT_URL);
-        if (!r.ok) throw new Error('EDHREC returned ' + r.status);
-        const rows = saltFromJson(await r.json());
-        if (!rows.length) throw new Error('no scores found on that page');
-        addSalt(rows);
-        try { await kvPut([['salt', { t: Date.now(), rows: [...saltMap] }]]); } catch (e) { /* optional */ }
-        toast(fmt(saltMap.size) + ' salt scores loaded');
-      } catch (e) {
-        toast('Could not load salt scores (' + (e && e.message ? e.message : 'blocked') + '). Cards show Salt — until EDHREC data arrives.');
-      } finally { saltBusy = null; }
-      applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false);
-    })();
-    return saltBusy;
-  }
   /* ---------- retro frame: every printing in a retro frame, foil first ---------- */
   // Scryfall's frame:retro is tried first; if it is not a recognised keyword the older frame names are used instead.
   const RETRO_QUERIES = ['frame:retro game:paper', 'is:retro game:paper', '(frame:1993 or frame:1997) game:paper'];
@@ -864,7 +824,6 @@ footer a{color:inherit}
       : s === 'edhrec' ? (a, b) => (a.r == null) - (b.r == null) || a.r - b.r || (a.nm < b.nm ? -1 : 1)
       : s === 'oldest' ? (a, b) => { const ya = pr(a).y, yb = pr(b).y; return ya < yb ? -1 : ya > yb ? 1 : (a.nm < b.nm ? -1 : 1); }
       : (a, b) => (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
-    if (st.salt) view.sort((a, b) => saltSort(a, b) || (a.nm < b.nm ? -1 : 1));
     if (retroActive()) {
       const out = [];
       for (const c of view) {
@@ -873,10 +832,10 @@ footer a{color:inherit}
         for (const p of all) if (!best || (p.f && !best.f) || (p.f === best.f && p.y >= best.y)) best = p;
         const o = Object.create(c); o._p = best; o._all = all; out.push(o);
       }
-      if (!st.salt) out.sort((a, b) => (b._p.f ? 1 : 0) - (a._p.f ? 1 : 0)); // stable: cards with a foil first, the chosen order kept within each group
+      out.sort((a, b) => (b._p.f ? 1 : 0) - (a._p.f ? 1 : 0)); // stable: cards with a foil first, the chosen order kept within each group
       view = out;
     }
-    const active = terms.length || hasCI || mv != null || types.length || legendary || st.retro || !st.showIllegal || st.cats.size || cassie || st.salt;
+    const active = terms.length || hasCI || mv != null || types.length || legendary || st.retro || !st.showIllegal || st.cats.size || cassie;
     el.count.textContent = retroActive() ? fmt(view.length) + ' cards with retro-frame printings' : fmt(view.length) + (active || cm ? ' of ' + fmt(cards.length) : '') + ' cards';
     el.clear.hidden = !(active);
     el.empty.hidden = view.length > 0 || !cards.length;
@@ -891,7 +850,7 @@ footer a{color:inherit}
       '<span class="body"><span class="l1"><span class="name">' + esc(c.n) + '</span><span class="cost">' + syms(c.mc) + '</span></span>' +
       '<span class="type">' + esc(c.t) + '</span>' +
       (c.o ? '<span class="text">' + syms(c.o) + '</span>' : '') +
-      '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(p.s.toUpperCase()) + ' ' + esc(p.y) + '</span>' + (c._p ? (p.f ? '<span class="flag foil">Foil</span>' : '<span>Nonfoil only</span>') : '') + (saltTxt(c) ? '<span>' + saltTxt(c) + '</span>' : '') + flag + '</span></span></button>' + addBtn(c) + '</div></li>';
+      '<span class="meta">' + ciPills(c.ci) + '<span>' + esc(p.s.toUpperCase()) + ' ' + esc(p.y) + '</span>' + (c._p ? (p.f ? '<span class="flag foil">Foil</span>' : '<span>Nonfoil only</span>') : '') + flag + '</span></span></button>' + mbBtn(c, 'mb') + addBtn(c) + '</div></li>';
   }
   const printLabel = (c, p) => (p._d ? 'Printing picked for your deck: ' + (p.sn ? p.sn + ' ' : '') + '(' + p.s.toUpperCase() + ') ' + p.y + (p.f ? ', foil' : '') : c._p ? 'Retro-frame printing ' + (p.sn ? p.sn + ' ' : '') + '(' + p.s.toUpperCase() + ') ' + p.y + (p.f ? ', foil available' : ', nonfoil only') : (cassieOn() && p !== c ? 'Printing ' : 'First printed ') + p.s.toUpperCase() + ' ' + p.y);
   // Retro-frame mode: every retro printing of the card, nested under it. Tap one to see it full size.
@@ -907,7 +866,7 @@ footer a{color:inherit}
     const p = pr(c);
     return '<div class="detail">' + (p.im ? '<img class="big" alt="' + esc(c.n) + '" src="' + IMG_BASE + 'normal/' + esc(p.im) + '">' : '') +
       '<div class="full">' + syms(c.o || 'No rules text.') + '</div>' +
-      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, printLabel(c, p), saltTxt(c), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).map(esc).join(' · ') + '</div>' +
+      '<div class="facts">' + [c.pt, 'Mana value ' + c.cmc, printLabel(c, p), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).map(esc).join(' · ') + '</div>' +
       (p.u ? '<a href="' + esc(p.u) + '" target="_blank" rel="noopener">View on Scryfall</a>' : '') + versionsHtml(c) + '</div>';
   }
   const rowCard = li => (li.dataset.vi !== '' && view[+li.dataset.vi]) || cards[+li.dataset.x];
@@ -929,7 +888,7 @@ footer a{color:inherit}
 
   /* ---------- state ---------- */
   function saveState() {
-    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, retro:st.retro, showIllegal:st.showIllegal, cats:[...st.cats], cassie:st.cassie, salt:st.salt, cmdr:st.cmdr })); } catch (e) {}
+    try { localStorage.setItem('prem15.state', JSON.stringify({ ci:[...st.ci], ciMode:st.ciMode, types:[...st.types], mv:st.mv, sort:st.sort, retro:st.retro, showIllegal:st.showIllegal, cats:[...st.cats], cassie:st.cassie, cmdr:st.cmdr })); } catch (e) {}
   }
   function loadState() {
     try {
@@ -937,7 +896,8 @@ footer a{color:inherit}
       if (!s) return;
       st.ci = new Set(s.ci || []); st.ciMode = s.ciMode === 'exact' ? 'exact' : 'within';
       st.types = new Set((s.types || []).filter(t => TYPES.includes(t)));
-      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.retro = s.retro === true; st.showIllegal = !!s.showIllegal; // the old hideBanned setting is dropped: not-legal cards are hidden unless this is ticked st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.salt = !!s.salt; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
+      st.mv = s.mv || ''; st.sort = s.sort || 'name'; st.retro = s.retro === true; st.showIllegal = !!s.showIllegal; // the old hideBanned setting is dropped: not-legal cards are hidden unless this is ticked
+      st.cats = new Set((s.cats || []).filter(k => CAT_LABEL[k])); st.cassie = !!s.cassie; st.cmdr = typeof s.cmdr === 'string' ? s.cmdr : '';
     } catch (e) {}
   }
   function syncControls() {
@@ -946,7 +906,7 @@ footer a{color:inherit}
     el.typeChips.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', st.types.has(b.dataset.t)));
     el.catChips.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', st.cats.has(b.dataset.k)));
     el.showIllegal.disabled = st.cats.size > 0;
-    el.mv.value = st.mv; el.sort.value = st.sort; el.showIllegal.checked = st.showIllegal; el.retro.checked = st.retro; renderRetro(); el.cassie.checked = st.cassie; el.salt.checked = st.salt; renderCassie();
+    el.mv.value = st.mv; el.sort.value = st.sort; el.showIllegal.checked = st.showIllegal; el.retro.checked = st.retro; renderRetro(); el.cassie.checked = st.cassie; renderCassie();
   }
 
   /* ---------- commander ---------- */
@@ -980,7 +940,7 @@ footer a{color:inherit}
       big.src = IMG_BASE + 'large/' + p.im;
     } else el.vwImg.removeAttribute('src');
     el.vwText.innerHTML = '<b>' + esc(c.n) + '</b> ' + syms(c.mc || '') + '\n' + esc(c.t) + (c.pt ? '  ' + esc(c.pt) : '') + '\n\n' + syms(c.o || 'No rules text.');
-    el.vwFacts.textContent = ['Mana value ' + c.cmc, printLabel(c, p), saltTxt(c), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).join(' · ');
+    el.vwFacts.textContent = ['Mana value ' + c.cmc, printLabel(c, p), (c.ex ? 'Unbanned in this format' : 'Commander: ' + legLabel(c))].filter(Boolean).join(' · ');
     el.vwLink.hidden = !p.u; if (p.u) el.vwLink.href = p.u;
     el.viewer.hidden = false; document.body.style.overflow = 'hidden';
   }
@@ -1040,7 +1000,7 @@ footer a{color:inherit}
     ['Combat', /extra combat|haste|whenever [\w ,]* attacks/],
     ['Mana', /add \{|adds? (an additional|one mana)/]
   ];
-  const pk = { ci: new Set(), mode: 'exact', themes: new Set(), mv: '', sort: 'name', salt: false };
+  const pk = { ci: new Set(), mode: 'exact', themes: new Set(), mv: '', sort: 'name' };
   function themeBits(c) {
     if (c.tb == null) { const t = norm(c.o); c.tb = THEMES.reduce((b, th, i) => ((th[1] instanceof RegExp ? th[1].test(t) : th[1](c, t)) ? b | (1 << i) : b), 0); }
     return c.tb;
@@ -1066,7 +1026,6 @@ footer a{color:inherit}
     const first = terms.find(t => !t.neg);
     const nameHit = c => (first && c.nm.includes(first.t) ? 0 : 1);
     const s = pk.sort;
-    if (pk.salt) { out.sort((a, b) => saltSort(a, b) || (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0)); return out; }
     out.sort((a, b) => nameHit(a) - nameHit(b) ||
       (s === 'pop' ? (a.r == null) - (b.r == null) || a.r - b.r : s === 'cmc' ? a.cmc - b.cmc : 0) ||
       (a.nm < b.nm ? -1 : a.nm > b.nm ? 1 : 0));
@@ -1077,8 +1036,7 @@ footer a{color:inherit}
     el.pickMode.querySelectorAll('[data-pm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pm === pk.mode));
     el.pickThemes.querySelectorAll('[data-th]').forEach(b => b.setAttribute('aria-pressed', pk.themes.has(+b.dataset.th)));
     el.pickMv.value = pk.mv; el.pickSort.value = pk.sort;
-    el.pickSalt.checked = pk.salt;
-    const n = (pk.ci.size ? 1 : 0) + pk.themes.size + (pk.mv !== '' ? 1 : 0) + (pk.salt ? 1 : 0);
+    const n = (pk.ci.size ? 1 : 0) + pk.themes.size + (pk.mv !== '' ? 1 : 0);
     el.refineBtn.textContent = n ? 'Refine · ' + n : 'Refine';
   }
   function renderPick() {
@@ -1098,7 +1056,7 @@ footer a{color:inherit}
     el.pickList.insertAdjacentHTML('beforeend', list.map(c =>
       '<li class="pickrow">' + (pr(c).im ? '<button class="pthumb" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size"><img loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(pr(c).im) + '"></button>' : '') +
       '<button class="pick" type="button" data-i="' + esc(c.i) + '"><span class="body"><span class="name">' + esc(c.n) + '</span>' +
-      '<span class="type">' + esc(c.t) + '</span>' + (saltTxt(c) ? '<span class="type">' + saltTxt(c) + '</span>' : '') + '</span>' +
+      '<span class="type">' + esc(c.t) + '</span>' + '</span>' +
       (c.l === 'legal' ? '' : '<span class="flag">' + esc(legLabel(c)) + '</span>') +
       '<span class="cost">' + ciPills(c.ci) + '</span></button>' +
       '<button class="ghost sbtn" type="button" data-s="' + esc(c.i) + '" aria-label="EDHREC suggestions for ' + esc(c.n) + '">Ideas</button></li>').join(''));
@@ -1116,7 +1074,7 @@ footer a{color:inherit}
     document.body.style.overflow = 'hidden'; el.pickQ.focus();
   }
   function closePicker() { el.picker.hidden = true; document.body.style.overflow = el.deckSheet.hidden ? '' : 'hidden'; }
-  function resetRefine() { pk.ci.clear(); pk.mode = 'exact'; pk.themes.clear(); pk.mv = ''; pk.sort = 'name'; pk.salt = false; el.pickQ.value = ''; renderPick(); }
+  function resetRefine() { pk.ci.clear(); pk.mode = 'exact'; pk.themes.clear(); pk.mv = ''; pk.sort = 'name'; el.pickQ.value = ''; renderPick(); }
 
   /* ---------- EDHREC suggestions ---------- */
   // EDHREC has no official API. This reads the same JSON pages its own site uses, one page per request,
@@ -1135,7 +1093,7 @@ footer a{color:inherit}
         if (!v || !v.name) continue;
         const s = typeof v.synergy === 'number' ? v.synergy : null;
         const cur = byName.get(v.name);
-        if (!cur) byName.set(v.name, { n: v.name, s, nd: v.num_decks || 0, pd: v.potential_decks || 0, L: [k], sa: typeof v.salt === 'number' ? v.salt : undefined });
+        if (!cur) byName.set(v.name, { n: v.name, s, nd: v.num_decks || 0, pd: v.potential_decks || 0, L: [k] });
         else {
           if (!cur.L.includes(k)) cur.L.push(k);
           if (s != null && (cur.s == null || s > cur.s)) { cur.s = s; cur.nd = v.num_decks || 0; cur.pd = v.potential_decks || 0; }
@@ -1166,7 +1124,6 @@ footer a{color:inherit}
     if (sg.theme && sg.base) { base = new Map(); for (const e of sg.base.cards) base.set(e.n, e.pd ? e.nd / e.pd : 0); }
     for (const e of sg.data.cards) {
       const c = nameIdx.get(norm(e.n));
-      if (e.sa != null && !saltMap.has(saltKey(e.n))) saltMap.set(saltKey(e.n), e.sa); // scores EDHREC attaches to its own lists
       if (!c || c === sg.c || (cassieOn() && !modern.has(c.i))) continue;
       if (!retroOk(c)) continue;
       if (!st.showIllegal && c.l !== 'legal') { sg.hidden++; continue; }
@@ -1184,7 +1141,6 @@ footer a{color:inherit}
     const key = r => (r.lift != null ? r.lift : (r.s == null ? -9 : r.s));
     if (sg.sort === 'pop') out.sort((a, b) => (b.inc || 0) - (a.inc || 0));
     else out.sort((a, b) => key(b) - key(a));
-    if (sg.salt) out.sort((a, b) => saltSort(a.c, b.c)); // stable: keeps the synergy order among equal scores
     return { rows: out, total: sg.data.cards.length, counts };
   }
   function sgAddHtml(c) {
@@ -1196,13 +1152,12 @@ footer a{color:inherit}
     const stats = [
       r.lift != null ? '<span class="syn">+' + Math.round(r.lift * 100) + '% vs all decks</span>'
         : (r.s == null ? '' : '<span class="syn">' + (r.s < 0 ? '−' : '+') + Math.abs(Math.round(r.s * 100)) + '% synergy</span>'),
-      r.inc == null ? '' : Math.round(r.inc * 100) + '% of ' + (r.lift != null ? 'theme ' : '') + 'decks',
-      saltTxt(c)
+      r.inc == null ? '' : Math.round(r.inc * 100) + '% of ' + (r.lift != null ? 'theme ' : '') + 'decks'
     ].filter(Boolean).join(' · ');
     const flag = c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>';
     const th = pr(c).im ? '<img class="sthumb" loading="lazy" alt="" src="' + IMG_BASE + 'small/' + esc(pr(c).im) + '">' : '';
     return '<li class="sg-row"><button class="sg-body linkrow" type="button" data-v="' + esc(c.i) + '" aria-label="View ' + esc(c.n) + ' full size">' + th + '<span class="sg-info"><span class="name">' + esc(c.n) + '</span> <span class="cost">' + syms(c.mc) + '</span>' + flag +
-      '<span class="type">' + esc(c.t) + '</span><span class="sg-stats">' + stats + '</span></span></button>' + (sg.mode === 'set' ? sgAddHtml(c) : '') + '</li>';
+      '<span class="type">' + esc(c.t) + '</span><span class="sg-stats">' + stats + '</span></span></button>' + (sg.mode === 'set' ? mbBtn(c, 'sg-mb') + sgAddHtml(c) : '') + '</li>';
   }
   function renderSuggCats(counts) {
     const cats = ((sg.data && sg.data.cats) || []).filter(c => counts[c.k]);
@@ -1266,11 +1221,11 @@ footer a{color:inherit}
     }
   }
   async function openSugg(c, mode) {
-    sg = { c, mode, salt: false, theme: '', cat: '', data: null, base: null, shown: 0, sort: 'syn', tags: [], req: 0 };
+    sg = { c, mode, theme: '', cat: '', data: null, base: null, shown: 0, sort: 'syn', tags: [], req: 0 };
     el.sgTitle.textContent = c.n; el.sgCI.innerHTML = ciPills(c.ci);
     el.sgUse.hidden = mode !== 'preview';
     el.sgLink.href = EDHREC_SITE + slugOf(c.n);
-    el.sgTags.innerHTML = ''; el.sgList.innerHTML = ''; el.sgSort.value = 'syn'; el.sgSalt.checked = false;
+    el.sgTags.innerHTML = ''; el.sgList.innerHTML = ''; el.sgSort.value = 'syn';
     el.sugg.hidden = false; document.body.style.overflow = 'hidden';
     await loadSugg('');
   }
@@ -1308,6 +1263,33 @@ footer a{color:inherit}
     ensureDeck(); renderBadge();
   }
   function qtyOf(oid) { return active().cards[oid] || 0; }
+  // Maybe board: d.maybe = {oracleId: true}. Never counted in the deck total, issues, owned or buy lists.
+  const isMaybe = oid => !!(active().maybe && active().maybe[oid]);
+  const maybeCount = () => { const m = active().maybe || {}; let n = 0; for (const k in m) if (!idx.size || idx.has(k)) n++; return n; };
+  function toggleMaybe(c) {
+    const d = active(); d.maybe = d.maybe || {};
+    if (d.maybe[c.i]) { delete d.maybe[c.i]; afterDeckChange(); return toast('Removed ' + c.n + ' from maybe board'); }
+    if (cmdrCard && c === cmdrCard) return toast('That is your commander');
+    if (d.cards[c.i]) return toast(c.n + ' is already in your deck');
+    d.maybe[c.i] = true; afterDeckChange(); toast('Maybe board: ' + c.n + ' (' + maybeCount() + ')');
+  }
+  function moveToDeck(oid) {
+    const d = active(), c = idx.get(oid); if (!c || !d.maybe || !d.maybe[oid]) return;
+    if (cmdrCard && (c.b & ~cmdrCard.b)) return toast('Outside your commander’s colors');
+    delete d.maybe[oid]; d.cards[oid] = 1; afterDeckChange(); toast('Moved ' + c.n + ' to deck · ' + deckTotal() + '/100');
+  }
+  function moveToMaybe(oid) {
+    const d = active(); if (!d.cards[oid]) return;
+    delete d.cards[oid]; if (d.own) delete d.own[oid]; d.maybe = d.maybe || {}; d.maybe[oid] = true; afterDeckChange();
+  }
+  const mbLabel = c => (isMaybe(c.i) ? 'Remove ' + c.n + ' from' : 'Add ' + c.n + ' to') + ' maybe board';
+  const mbBtn = (c, cls) => '<button class="' + cls + (isMaybe(c.i) ? ' on' : '') + '" type="button" data-mb="' + c.x + '" aria-pressed="' + isMaybe(c.i) + '" aria-label="' + esc(mbLabel(c)) + '">' + (isMaybe(c.i) ? '★' : '☆') + '</button>';
+  function refreshMaybe(root, cls) {
+    root.querySelectorAll('.' + cls).forEach(b => {
+      const c = cards[+b.dataset.mb]; if (!c) return;
+      b.classList.toggle('on', isMaybe(c.i)); b.textContent = isMaybe(c.i) ? '★' : '☆'; b.setAttribute('aria-pressed', isMaybe(c.i)); b.setAttribute('aria-label', mbLabel(c));
+    });
+  }
   function deckTotal() {
     const d = active(); let n = cmdrCard ? 1 : 0;
     for (const k in d.cards) if (!idx.size || idx.has(k)) n += d.cards[k];
@@ -1360,7 +1342,9 @@ footer a{color:inherit}
     return deckNeeds().filter(e => e.need > 0).map(e => {
       const p = useP && d.prints && d.prints[e.c.i], base = e.need + ' ' + frontName(e.c);
       if (!p || !p.s || !p.cn) return base;
-      return style === 'tcg' ? base + ' [' + p.s.toUpperCase() + '] ' + p.cn : base + ' (' + p.s.toUpperCase() + ') ' + p.cn + (p.foil ? ' *F*' : '');
+      // Scryfall numbers like "325★" or "12†" do not exist on TCGplayer: send just the set so any art from it matches
+      if (style === 'tcg') return base + ' [' + p.s.toUpperCase() + ']' + (/^\d+[a-z]?$/i.test(p.cn) ? ' ' + p.cn : '');
+      return base + ' (' + p.s.toUpperCase() + ') ' + p.cn + (p.foil ? ' *F*' : '');
     });
   }
   /* ---------- choosing a printing for a deck card ---------- */
@@ -1433,8 +1417,11 @@ footer a{color:inherit}
   }
   async function buyAt(store) {
     const lines = buyLines(); if (!lines.length) return;
-    const lines2 = buyLines(store === 'tcg' ? 'tcg' : 'mp'), text = lines2.join('\n'), copied = await copyText(text);
-    if (store === 'tcg') {
+    const lines2 = buyLines(store === 'tcg' || store === 'tcgpaste' ? 'tcg' : 'mp'), text = lines2.join('\n'), copied = await copyText(text);
+    if (store === 'tcgpaste') {
+      window.open('https://www.tcgplayer.com/massentry?productline=Magic', '_blank', 'noopener');
+      el.buyMsg.textContent = copied ? 'List copied. In Mass Entry, paste it into the Items box, fix any lines it flags, then tap Add to Cart.' : 'Opened Mass Entry. Tap “Copy list” here first, then paste it into the Items box.';
+    } else if (store === 'tcg') {
       window.open(TCG_URL + encodeURIComponent(lines2.join('||')), '_blank', 'noopener');
       el.buyMsg.textContent = 'Opened TCGplayer Mass Entry with your list' + (copied ? ' (also copied). ' : '. ') + 'Check the matches there, then tap Add to Cart.';
     } else {
@@ -1442,12 +1429,13 @@ footer a{color:inherit}
       el.buyMsg.textContent = copied ? 'List copied. Paste it into the box on Mana Pool, then add the matches to your cart.' : 'Opened Mana Pool. Tap “Copy list” here first, then paste it into their import box.';
     }
   }
-  function afterDeckChange() { renderBadge(); refreshAdds(); refreshSuggAdds(); if (!el.deckSheet.hidden) renderDeck(); saveDecks(); }
+  function afterDeckChange() { renderBadge(); refreshAdds(); refreshSuggAdds(); refreshMaybe(el.results, 'mb'); refreshMaybe(el.sgList, 'sg-mb'); if (!el.deckSheet.hidden) renderDeck(); saveDecks(); }
   function toggleCard(c) {
     const d = active(), q = d.cards[c.i] || 0;
     if (cmdrCard && c === cmdrCard) return toast('That is your commander');
     if (cmdrCard && (c.b & ~cmdrCard.b)) return toast('Outside your commander’s colors');
     let msg;
+    if (d.maybe) delete d.maybe[c.i];
     if (c.un) { d.cards[c.i] = q + 1; msg = 'Added ' + c.n + ' (' + (q + 1) + ')'; }
     else if (q) { delete d.cards[c.i]; msg = 'Removed ' + c.n; }
     else { d.cards[c.i] = 1; msg = 'Added ' + c.n; }
@@ -1455,7 +1443,7 @@ footer a{color:inherit}
   }
   function setQty(oid, q) {
     const d = active();
-    if (q <= 0) delete d.cards[oid]; else d.cards[oid] = q;
+    if (q <= 0) delete d.cards[oid]; else { d.cards[oid] = q; if (d.maybe) delete d.maybe[oid]; }
     afterDeckChange();
   }
   function groupOf(c) {
@@ -1497,7 +1485,7 @@ footer a{color:inherit}
       ? '<button class="qb" type="button" data-act="dec" data-i="' + i + '" aria-label="Remove one ' + n + '">−</button><span class="qn">' + e.q + '</span><button class="qb" type="button" data-act="inc" data-i="' + i + '" aria-label="Add one ' + n + '">+</button>'
       : '<button class="qb" type="button" data-act="rm" data-i="' + i + '" aria-label="Remove ' + n + '">✕</button>';
     const warn = c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>';
-    return '<li class="drow' + (e.have >= e.q ? ' have' : '') + '"><span class="dn"><button class="linkbtn" type="button" data-v="' + i + '">' + n + '</button>' + warn + printBtn(c.i) + '</span><span class="cost">' + syms(c.mc) + '</span>' + ownBtn(c.i, e.have, e.q) + '<span class="qc">' + ctl + '</span></li>';
+    return '<li class="drow' + (e.have >= e.q ? ' have' : '') + '"><span class="dn"><button class="linkbtn" type="button" data-v="' + i + '">' + n + '</button>' + warn + printBtn(c.i) + '</span><span class="cost">' + syms(c.mc) + '</span>' + ownBtn(c.i, e.have, e.q) + '<button class="mv" type="button" data-tomb="' + i + '" aria-label="Move ' + n + ' to maybe board">Maybe</button><span class="qc">' + ctl + '</span></li>';
   }
   function renderDeck() {
     const d = active(), total = deckTotal();
@@ -1530,7 +1518,15 @@ footer a{color:inherit}
       list.sort((a, b) => a.c.cmc - b.c.cmc || (a.c.nm < b.c.nm ? -1 : 1));
       html += '<h3 class="gh">' + GROUP_LABEL[g] + '<span>' + list.reduce((s, e) => s + e.q, 0) + '</span></h3><ul class="dl">' + list.map(deckRow).join('') + '</ul>';
     }
-    el.deckList.innerHTML = html || '<p class="empty">No cards yet. Tap + on a search result to add it.</p>';
+    const mlist = [];
+    for (const k in (d.maybe || {})) { const c = idx.get(k); if (c) mlist.push(c); }
+    mlist.sort((a, b) => a.cmc - b.cmc || (a.nm < b.nm ? -1 : 1));
+    if (mlist.length) html += '<h3 class="gh maybe-h">Maybe board<span>' + mlist.length + '</span></h3><ul class="dl">' + mlist.map(c => {
+      const i = esc(c.i), n = esc(c.n), off = cmdrCard && (c.b & ~cmdrCard.b);
+      return '<li class="drow mrow"><span class="dn"><button class="linkbtn" type="button" data-v="' + i + '">' + n + '</button>' + (c.l === 'legal' ? '' : ' <span class="flag">' + esc(legLabel(c)) + '</span>') + (off ? ' <span class="flag">Off-color</span>' : '') + printBtn(c.i) + '</span><span class="cost">' + syms(c.mc) + '</span>' +
+        '<button class="mv" type="button" data-mv="' + i + '" aria-label="Move ' + n + ' to deck">To deck</button><span class="qc"><button class="qb" type="button" data-mrm="' + i + '" aria-label="Remove ' + n + ' from maybe board">✕</button></span></li>';
+    }).join('') + '</ul>';
+    el.deckList.innerHTML = html || '<p class="empty">No cards yet. Tap + on a search result to add it, or ☆ to keep it on your maybe board.</p>';
     renderOwn();
   }
   function openDeck() { el.deckSheet.hidden = false; document.body.style.overflow = 'hidden'; el.ioMsg.textContent = ''; renderDeck(); }
@@ -1563,10 +1559,12 @@ footer a{color:inherit}
     items.sort((a, b) => (a[0].toLowerCase() < b[0].toLowerCase() ? -1 : 1));
     const lines = cmdrCard ? ['1 ' + cmdrCard.n] : [];
     for (const [n, q] of items) lines.push(q + ' ' + n);
+    const mb = []; for (const k in (d.maybe || {})) { const c = idx.get(k); if (c) mb.push(c.n); }
+    if (mb.length) { lines.push('', 'Maybeboard'); mb.sort((a, b) => a.toLowerCase() < b.toLowerCase() ? -1 : 1).forEach(n => lines.push('1 ' + n)); }
     return lines.join('\n');
   }
   function importText(text) {
-    const d = active(); let added = 0, side = 0, newCmdr = ''; const miss = [];
+    const d = active(); let added = 0, side = 0, maybe = 0, newCmdr = ''; const miss = [];
     let section = 'main';
     for (const raw of text.split(/\r?\n/)) {
       const line = raw.trim();
@@ -1576,8 +1574,9 @@ footer a{color:inherit}
       const m = line.match(/^(\d+)\s*x?\s+(.+)$/i);
       const q = m ? parseInt(m[1], 10) : 1;
       const name = (m ? m[2] : line).replace(/\s+\([A-Za-z0-9]{2,6}\)(\s+\S+)?\s*(\*[A-Za-z]+\*)?\s*$/, '').trim();
-      if (section === 'sideboard' || section === 'maybeboard' || section === 'companion') { side += q; continue; }
+      if (section === 'sideboard' || section === 'companion') { side += q; continue; }
       const c = nameIdx.get(norm(name));
+      if (section === 'maybeboard') { if (c && !(cmdrCard && c === cmdrCard) && !d.cards[c.i]) { d.maybe = d.maybe || {}; d.maybe[c.i] = true; maybe++; } else side += q; continue; }
       if (!c) { miss.push(name); continue; }
       if (cmdrCard && c === cmdrCard) continue;
       if (section === 'commander' && !cmdrCard && !newCmdr && c.cm) { newCmdr = c.i; continue; }
@@ -1585,7 +1584,7 @@ footer a{color:inherit}
     }
     if (newCmdr) setCmdr(newCmdr);
     afterDeckChange();
-    return { added, miss, side };
+    return { added, miss, side, maybe };
   }
 
   /* ---------- wiring ---------- */
@@ -1608,7 +1607,6 @@ footer a{color:inherit}
     el.mv.addEventListener('change', () => { st.mv = el.mv.value; applyFilters(); });
     el.sort.addEventListener('change', () => { st.sort = el.sort.value; applyFilters(); });
     el.showIllegal.addEventListener('change', () => { st.showIllegal = el.showIllegal.checked; applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false); });
-    el.salt.addEventListener('change', () => { st.salt = el.salt.checked; if (st.salt) ensureSalt(); applyFilters(true); });
     el.retro.addEventListener('change', () => { st.retro = el.retro.checked; retroErr = ''; renderRetro(); applyFilters(true); if (!el.picker.hidden) renderPick(); if (sg) renderSugg(false); });
     el.retroBtn.addEventListener('click', syncRetro);
     el.cassie.addEventListener('change', () => {
@@ -1617,11 +1615,12 @@ footer a{color:inherit}
     });
     el.cassieBtn.addEventListener('click', syncModern);
     el.clear.addEventListener('click', () => {
-      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.showIllegal = false; st.retro = false; st.cassie = false; st.salt = false; st.ciMode = 'within';
+      el.q.value = ''; st.ci.clear(); st.types.clear(); st.cats.clear(); st.mv = ''; st.showIllegal = false; st.retro = false; st.cassie = false; st.ciMode = 'within';
       syncControls(); applyFilters();
     });
     el.catChips.addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k; st.cats.has(k) ? st.cats.delete(k) : st.cats.add(k); syncControls(); applyFilters(); });
     el.results.addEventListener('click', e => {
+      const mb = e.target.closest('.mb'); if (mb) { toggleMaybe(cards[+mb.dataset.mb]); return; }
       const ab = e.target.closest('.add');
       if (ab) { toggleCard(cards[+ab.closest('.card').dataset.x]); return; }
       const vb = e.target.closest('[data-vp]');
@@ -1661,7 +1660,6 @@ footer a{color:inherit}
     el.pickMode.addEventListener('click', e => { const b = e.target.closest('[data-pm]'); if (!b) return; pk.mode = b.dataset.pm; renderPick(); });
     el.pickThemes.addEventListener('click', e => { const b = e.target.closest('[data-th]'); if (!b) return; const i = +b.dataset.th; pk.themes.has(i) ? pk.themes.delete(i) : pk.themes.add(i); renderPick(); });
     el.pickMv.addEventListener('change', () => { pk.mv = el.pickMv.value; renderPick(); });
-    el.pickSalt.addEventListener('change', () => { pk.salt = el.pickSalt.checked; if (pk.salt) ensureSalt(); renderPick(); });
     el.pickSort.addEventListener('change', () => { pk.sort = el.pickSort.value; renderPick(); });
     el.pickReset.addEventListener('click', resetRefine);
     el.cmdrIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
@@ -1674,11 +1672,10 @@ footer a{color:inherit}
     el.deckIdeas.addEventListener('click', () => { if (cmdrCard) openSugg(cmdrCard, 'set'); });
     el.sgClose.addEventListener('click', closeSugg);
     el.sgUse.addEventListener('click', () => { const c = sg && sg.c; closeSugg(); if (c) { closePicker(); setCmdr(c.i); } });
-    el.sgSalt.addEventListener('change', () => { if (!sg) return; sg.salt = el.sgSalt.checked; if (sg.salt) ensureSalt(); renderSugg(false); });
     el.sgCats.addEventListener('click', e => { const b = e.target.closest('[data-ct]'); if (!b || !sg) return; sg.cat = b.dataset.ct; renderSugg(false); });
     el.sgTags.addEventListener('click', e => { const b = e.target.closest('[data-tg]'); if (!b || !sg) return; loadSugg(b.dataset.tg); });
     el.sgSort.addEventListener('change', () => { if (!sg) return; sg.sort = el.sgSort.value; renderSugg(false); });
-    el.sgList.addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (b) toggleCard(cards[+b.dataset.sa]); });
+    el.sgList.addEventListener('click', e => { const m = e.target.closest('.sg-mb'); if (m) { toggleMaybe(cards[+m.dataset.mb]); return; } const b = e.target.closest('[data-sa]'); if (b) toggleCard(cards[+b.dataset.sa]); });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if (!el.viewer.hidden) closeViewer(); else if (!el.prSheet.hidden) closePrints(); else if (!el.sugg.hidden) closeSugg(); else if (!el.picker.hidden) closePicker(); else if (!el.deckSheet.hidden) closeDeck();
@@ -1696,6 +1693,9 @@ footer a{color:inherit}
     });
     el.deckList.addEventListener('click', e => {
       const ob = e.target.closest('[data-own]'); if (ob) { cycleOwn(ob.dataset.own); return; }
+      const mv = e.target.closest('[data-mv]'); if (mv) { moveToDeck(mv.dataset.mv); return; }
+      const mr = e.target.closest('[data-mrm]'); if (mr) { const d = active(); if (d.maybe) delete d.maybe[mr.dataset.mrm]; afterDeckChange(); return; }
+      const tm = e.target.closest('[data-tomb]'); if (tm) { moveToMaybe(tm.dataset.tomb); return; }
       const pb = e.target.closest('[data-pr]'); if (pb) { openPrints(pb.dataset.pr); return; }
       const b = e.target.closest('[data-act]'); if (!b) return;
       const id = b.dataset.i, q = qtyOf(id);
@@ -1708,6 +1708,7 @@ footer a{color:inherit}
     el.ownNone.addEventListener('click', () => setAllOwned(false));
     el.buyBtn.addEventListener('click', openBuy);
     el.buyTcg.addEventListener('click', () => buyAt('tcg'));
+    el.buyTcgPaste.addEventListener('click', () => buyAt('tcgpaste'));
     el.buyMp.addEventListener('click', () => buyAt('mp'));
     el.buyCopy.addEventListener('click', async () => { el.buyMsg.textContent = (await copyText(buyLines('mp').join('\n'))) ? 'Copied ' + buyLines('mp').length + ' lines.' : 'Could not copy; use Export under “Import, export or delete”.'; });
     el.ioCopy.addEventListener('click', async () => {
@@ -1723,6 +1724,7 @@ footer a{color:inherit}
       if (!cards.length) { el.ioMsg.textContent = 'Download the card list first (Data button).'; return; }
       const r = importText(el.ioText.value);
       el.ioMsg.textContent = 'Added ' + r.added + ' card' + (r.added === 1 ? '' : 's') + '.' +
+        (r.maybe ? ' Added ' + r.maybe + ' to the maybe board.' : '') +
         (r.side ? ' Skipped ' + r.side + ' sideboard card' + (r.side === 1 ? '' : 's') + '.' : '') +
         (r.miss.length ? ' Not in this format: ' + r.miss.join('; ') : '');
     });
@@ -1733,9 +1735,8 @@ footer a{color:inherit}
   async function boot() {
     await loadDecks();
     try {
-      const [arr, m, mo, sl, rt] = await Promise.all([kvGet('cards'), kvGet('meta'), kvGet('modern'), kvGet('salt'), kvGet('retro')]);
+      const [arr, m, mo, rt] = await Promise.all([kvGet('cards'), kvGet('meta'), kvGet('modern'), kvGet('retro')]);
       if (rt && rt.rows && rt.v === 2) { setRetro(rt.rows); retroUsed = rt.q || ''; }
-      if (sl && sl.rows) addSalt(sl.rows);
       if (mo && mo.rows && mo.v === MODERN_VER) { setModern(mo.rows); renderCassie(); }
       if (arr && arr.length && m) {
         meta = m; cards = prepare(arr); findCmdr(); renderCmdr(); afterData();

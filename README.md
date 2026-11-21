@@ -85,12 +85,6 @@ In Filters, tick "Cassie mode" to show only cards that have a 2015-frame printin
 
 Each commander's Ideas sheet has an "EDHREC categories" row built from the lists EDHREC itself publishes for that commander (for example New Cards, Top Cards, High Lift, Creatures, Instants, Sorceries, Utility Artifacts, Enchantments, Planeswalkers, Utility Lands, Mana Artifacts, Lands). Each chip shows how many pre-M15 cards it holds. Categories combine with the theme chips and Cassie mode. Only lists EDHREC actually has for that commander appear.
 
-## Minimize salt
-
-A "Minimize salt" checkbox appears in Filters (main search), in the commander picker's Refine panel, and in each Ideas sheet. It sorts the list by EDHREC salt score, lowest first. Every card shows "Salt 0.00-4.00" when a score is known, or "Salt —" when it is not.
-
-Scores come from EDHREC's top-salt page (loaded the first time you tick a Minimize salt box, then kept on the device) and from any score EDHREC includes on a commander page. EDHREC publishes scores for the saltier end of the card pool, so a card showing "Salt —" has no published score and sorts as if it were 0.
-
 ## Not-legal cards are hidden by default
 
 Cards that are not legal in Commander (banned, silver border, conspiracies and so on) no longer appear in search, the commander picker or Ideas until you tick "Show cards that are not legal in Commander" in Filters. The three unbanned cards still count as legal. Picking a category chip (for example Silver border) shows that category even while the box is unticked. Search and Ideas tell you how many were hidden.
@@ -119,3 +113,8 @@ Under each card name in the deck sheet is a "Any printing ▾" button (commander
 "Buy the rest…" carries the picks across: TCGplayer gets lines like `1 Sol Ring [C21] 263`, and the copied/Mana Pool list uses `1 Sol Ring (C21) 263 *F*` (the `*F*` marks foil). A "Use the printings I picked" tick box lets you fall back to plain card names if a store does not recognise a set code. TCGplayer Mass Entry has no foil field, so choose foil on its listings after the list opens.
 
 A printing you pick for a deck card is also the one shown everywhere that card appears (lists, the full-size viewer, its Scryfall link), with a note saying it is the printing picked for your deck.
+
+TCGplayer note: Scryfall collector numbers with symbols (for example `325★`) are not valid on TCGplayer, so for those only the set is sent (`[7ED]`). If TCGplayer shows "unable to automatically add the items to your cart" after the link opens, use "TCGplayer (paste)": it copies the list and opens plain Mass Entry so you can paste it, fix any flagged lines, and add to cart yourself.
+
+## Maybe board
+Cards you're considering but haven't committed to. Tap the ☆ beside the + on any search result or Ideas row to put a card on the maybe board (★ means it's there; tap again to remove). In the deck sheet the maybe board is listed under the deck with **To deck** and ✕ buttons, and every deck row has a **Maybe** button to bench a card. Maybe cards never count toward the 100, the issues list, the mana curve, the owned checklist or the buy lists. Adding a card to the deck takes it off the maybe board. Export adds a `Maybeboard` section, and importing a list with a `Maybeboard` header fills the board. Each deck has its own maybe board.
